@@ -5,6 +5,7 @@ import styles from "../dashboard.module.css";
 import StudentGradesModal from "./StudentGradesModal";
 import { averagePct, groupAveragePct, pivotColumns, buildAssignments } from "../../../lib/grading";
 import { downloadCsv } from "../../../lib/csvExport";
+import { localTodayISO } from "../../../lib/dateFormat";
 
 function fmtPct(pct) {
   return pct != null ? `${pct.toFixed(1)}%` : "—";
@@ -54,7 +55,7 @@ function StudentTable({ students, items, onView }) {
 export default function GradebookGroups({ students, items, groupBy }) {
   const [expanded, setExpanded] = useState(new Set());
   const [viewingStudent, setViewingStudent] = useState(null);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayISO();
 
   const exportCsv = (scopeStudents, scopeItems, filename, includeGroupColumn) => {
     const assignments = buildAssignments(scopeItems);

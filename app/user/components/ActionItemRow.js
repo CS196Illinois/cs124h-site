@@ -3,6 +3,7 @@
 import styles from "../dashboard.module.css";
 import StatusBadge from "./StatusBadge";
 import { gradingStatus } from "../../../lib/grading";
+import { formatDueDate } from "../../../lib/dateFormat";
 
 export default function ActionItemRow({ item, myNetId, onToggle, onEdit, onDelete, onGrade, onDeleteBatch, allItems }) {
   const assignedBy = item.assigned_by || item.additional_info?.assigned_by;
@@ -24,7 +25,7 @@ export default function ActionItemRow({ item, myNetId, onToggle, onEdit, onDelet
         )}
       </td>
       <td style={{ color: "rgba(249,249,249,0.6)", fontSize: "0.85rem" }}>
-        {item.due_date ? new Date(item.due_date).toLocaleDateString() : "-"}
+        {item.due_date ? formatDueDate(item.due_date) : "-"}
       </td>
       <td><StatusBadge item={item} /></td>
       <td>

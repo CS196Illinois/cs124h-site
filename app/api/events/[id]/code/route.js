@@ -1,9 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "../../../auth/[...nextauth]/route";
-import { supabaseServer } from "../../../../../lib/supabaseServer";
-import { table } from "../../../../../lib/tables";
-import { isSandboxRole, getSandboxMode, getEffectiveRow } from "../../../../../lib/sandbox";
+import { getManagedEvent } from "../../../../../lib/events";
 import crypto from "crypto";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
@@ -32,16 +30,11 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const netID = session?.user?.netID;
 
-  let event;
-  if (isSandboxRole(session?.user?.role) && (await getSandboxMode(netID)) !== "off") {
-    const { data: realRow } = await supabaseServer.from(table("events")).select("check_in_open").eq("id", id).maybeSingle();
-    event = await getEffectiveRow(netID, "events", id, realRow);
-  } else {
-    const { data } = await supabaseServer.from(table("events")).select("check_in_open").eq("id", id).single();
-    event = data;
+  const event = await getManagedEvent(id, netID, session?.user?.role);
+  if (!event) {
+    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
   }
-
-  if (!event?.check_in_open) {
+  if (!event.check_in_open) {
     return NextResponse.json({ error: "Check-in is not open" }, { status: 400 });
   }
 

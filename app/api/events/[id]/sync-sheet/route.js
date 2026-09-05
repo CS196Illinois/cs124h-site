@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "../../../auth/[...nextauth]/route";
+import { getManagedEvent } from "../../../../../lib/events";
 import { syncEventAttendance } from "../../../../../lib/eventAttendanceSync";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
@@ -11,11 +12,15 @@ const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 export async function POST(request, { params }) {
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;
+  const netID = session?.user?.netID;
   if (!STAFF_ROLES.includes(userRole)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   const { id } = await params;
+  if (!(await getManagedEvent(id, netID, userRole))) {
+    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+  }
   try {
     await syncEventAttendance(id);
   } catch (e) {

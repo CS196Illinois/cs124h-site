@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
+import { localTodayISO, formatDueDate } from "../../../lib/dateFormat";
 
 export default function StudentDashboard() {
   const { data: session, status } = useSession();
@@ -32,7 +33,7 @@ export default function StudentDashboard() {
     }
     if (spRes.ok) {
       const spData = await spRes.json();
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localTodayISO();
       const cur = spData.find((s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date) || spData[0] || null;
       setCurrentSprint(cur);
       if (cur) {
@@ -179,7 +180,7 @@ export default function StudentDashboard() {
                     <div className={styles.actionMeta}>
                       {item.due_date && (
                         <span className={styles.actionMetaItem}>
-                          Due {new Date(item.due_date).toLocaleDateString()}
+                          Due {formatDueDate(item.due_date)}
                         </span>
                       )}
                       {item.additional_info?.assigned_by && (
