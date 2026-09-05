@@ -6,11 +6,12 @@ import { supabaseServer } from "../../../../../lib/supabaseServer";
 import { table } from "../../../../../lib/tables";
 import { deriveCode } from "../code/route";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, mergeSandboxRows, sandboxWrite } from "../../../../../lib/sandbox";
+import { getManagedEvent } from "../../../../../lib/events";
 import { syncEventAttendance } from "../../../../../lib/eventAttendanceSync";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
-// Staff: view attendees for an event
+// The event's creator: view its attendee list
 export async function GET(request, { params }) {
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;
@@ -20,6 +21,9 @@ export async function GET(request, { params }) {
   }
 
   const { id } = await params;
+  if (!(await getManagedEvent(id, netID, userRole))) {
+    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+  }
   const { data, error } = await supabaseServer
     .from(table("eventCheckins"))
     .select("net_id, checked_in_at")

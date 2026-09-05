@@ -43,7 +43,7 @@ describe("GET/POST /api/events", () => {
 describe("PATCH/DELETE /api/events/[id]", () => {
   beforeEach(clearAllTestTables);
 
-  it("a non-full-access staffer can only edit events they created", async () => {
+  it("only the event's creator can edit or delete it - even a course lead cannot touch someone else's", async () => {
     const mine = await insertEvent({ title: "mine", created_by: "pm1" });
     const others = await insertEvent({ title: "theirs", created_by: "pm2" });
     asRole("pm", "pm1");
@@ -58,12 +58,20 @@ describe("PATCH/DELETE /api/events/[id]", () => {
       makeRequest(`http://localhost/api/events/${others.id}`, { method: "PATCH", body: { title: "hacked" } }),
       { params: { id: others.id } }
     );
-    // update matches zero rows (scoped to created_by=pm1) -> .single() errors
-    expect(blocked.status).toBe(500);
+    expect(blocked.status).toBe(403);
+
+    asRole("course_lead", "lead1");
+    const leadBlocked = await PATCH(
+      makeRequest(`http://localhost/api/events/${others.id}`, { method: "PATCH", body: { title: "hacked" } }),
+      { params: { id: others.id } }
+    );
+    expect(leadBlocked.status).toBe(403);
+    const leadDel = await DELETE(makeRequest(`http://localhost/api/events/${others.id}`, { method: "DELETE" }), { params: { id: others.id } });
+    expect(leadDel.status).toBe(403);
   });
 
-  it("course_lead (full access) can edit and delete any event", async () => {
-    const event = await insertEvent({ title: "theirs", created_by: "pm2" });
+  it("the creator can open check-in and delete their own event", async () => {
+    const event = await insertEvent({ title: "mine", created_by: "lead1" });
     asRole("course_lead", "lead1");
 
     const res = await PATCH(
@@ -76,6 +84,29 @@ describe("PATCH/DELETE /api/events/[id]", () => {
 
     const del = await DELETE(makeRequest(`http://localhost/api/events/${event.id}`, { method: "DELETE" }), { params: { id: event.id } });
     expect(del.status).toBe(200);
+  });
+});
+
+describe("GET /api/events scoping", () => {
+  beforeEach(clearAllTestTables);
+
+  it("the Events tab (default scope) returns only events you created", async () => {
+    await insertEvent({ title: "pm1 event", created_by: "pm1" });
+    await insertEvent({ title: "pm2 event", created_by: "pm2" });
+    asRole("pm", "pm1");
+    const list = await (await GET(makeRequest("http://localhost/api/events"))).json();
+    expect(list.map((e) => e.title)).toEqual(["pm1 event"]);
+  });
+
+  it("the Attendance tab (scope=checkin) returns open events plus ones you've attended", async () => {
+    const open = await insertEvent({ title: "open", created_by: "pm2", check_in_open: true });
+    const closedMine = await insertEvent({ title: "closed attended", created_by: "pm2", check_in_open: false });
+    await insertEvent({ title: "closed not attended", created_by: "pm2", check_in_open: false });
+    await testClient().from(table("eventCheckins")).insert({ event_id: closedMine.id, net_id: "stu1" });
+
+    asRole("student", "stu1");
+    const list = await (await GET(makeRequest("http://localhost/api/events?scope=checkin"))).json();
+    expect(list.map((e) => e.title).sort()).toEqual(["closed attended", "open"]);
   });
 });
 
@@ -222,11 +253,15 @@ describe("event check-ins - sandbox mode", () => {
 describe("attendance code + check-in", () => {
   beforeEach(clearAllTestTables);
 
-  it("code endpoint is staff-only and requires check-in to be open", async () => {
-    const event = await insertEvent({ title: "e", check_in_open: false });
+  it("code endpoint is creator-only and requires check-in to be open", async () => {
+    const event = await insertEvent({ title: "e", check_in_open: false, created_by: "pm1" });
     asRole("student", "stu1");
     const forbidden = await GET_CODE(makeRequest(`http://localhost/api/events/${event.id}/code`), { params: { id: event.id } });
     expect(forbidden.status).toBe(403);
+
+    asRole("pm", "pm2"); // a staffer, but not the creator
+    const notMine = await GET_CODE(makeRequest(`http://localhost/api/events/${event.id}/code`), { params: { id: event.id } });
+    expect(notMine.status).toBe(403);
 
     asRole("pm", "pm1");
     const notOpen = await GET_CODE(makeRequest(`http://localhost/api/events/${event.id}/code`), { params: { id: event.id } });
@@ -234,7 +269,7 @@ describe("attendance code + check-in", () => {
   });
 
   it("returns a code matching deriveCode() once check-in is open", async () => {
-    const event = await insertEvent({ title: "e", check_in_open: true });
+    const event = await insertEvent({ title: "e", check_in_open: true, created_by: "pm1" });
     asRole("pm", "pm1");
     const res = await GET_CODE(makeRequest(`http://localhost/api/events/${event.id}/code`), { params: { id: event.id } });
     const json = await res.json();
@@ -261,7 +296,7 @@ describe("attendance code + check-in", () => {
   });
 
   it("accepts the correct code, records the check-in, and blocks a duplicate", async () => {
-    const event = await insertEvent({ title: "open", check_in_open: true });
+    const event = await insertEvent({ title: "open", check_in_open: true, created_by: "pm1" });
     asRole("student", "stu1");
 
     const first = await POST_CHECKIN(

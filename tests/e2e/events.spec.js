@@ -192,41 +192,26 @@ test.describe("events: create, check-in toggle, and creator-scoped permissions",
     expect(data.check_in_open).toBe(true);
   });
 
-  test("a pm cannot delete another pm's event, but course_lead (full access) can", async ({ page, loginAs }) => {
+  test("only the creator sees their event in the Events tab - not another pm, not a course lead", async ({ page, loginAs }) => {
     await insertUser({ net_id: "e2e-pm-owner", role: "PM", group_number: 1 });
     await insertUser({ net_id: "e2e-pm-other", role: "PM", group_number: 2 });
     await insertEvent({ title: "Owner's Event", created_by: "e2e-pm-owner" });
 
-    // A different pm sees it (all staff can see all events), and deleting it
-    // optimistically removes it from their own view - but once the undo
-    // window ends and the real request 403s, the undo system auto-restores
-    // it, since the action never actually happened server-side.
-    // "Owner's Event" also appears (as a substring) inside the undo toast's
-    // own message once it's up, so every check on the table row itself uses
-    // exact:true to stay unambiguous.
+    // A different pm doesn't see it at all.
     await loginAs({ netID: "e2e-pm-other", role: "pm" });
     await page.goto("/user/pm/events");
-    await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByText("No events yet.", { exact: false })).toBeVisible();
     await expect(page.getByText("Owner's Event", { exact: true })).not.toBeVisible();
-    // Confirm the toast actually appeared before waiting for it to clear -
-    // otherwise not.toBeVisible() below could pass trivially before it ever renders.
-    const toast = page.getByText(/Deleted "Owner's Event"/);
-    await expect(toast).toBeVisible();
-    await expect(toast).not.toBeVisible(); // commit attempted, 403'd
-    await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible(); // ...and restored
 
-    // course_lead has full access and can delete anyone's event - this time
-    // the commit succeeds, so nothing comes back.
+    // Neither does a course lead.
     await loginAs({ netID: "e2e-lead", role: "course_lead" });
     await page.goto("/user/course_lead/events");
-    await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText("Owner's Event", { exact: true })).not.toBeVisible();
-    const secondToast = page.getByText(/Deleted "Owner's Event"/);
-    await expect(secondToast).toBeVisible();
-    await expect(secondToast).not.toBeVisible();
-    await expect(page.getByText("Owner's Event", { exact: true })).not.toBeVisible(); // stays gone - commit succeeded
+
+    // The creator does.
+    await loginAs({ netID: "e2e-pm-owner", role: "pm" });
+    await page.goto("/user/pm/events");
+    await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible();
   });
 
   // Regression test: the Start Time / End Time row used `flex: 1` on two

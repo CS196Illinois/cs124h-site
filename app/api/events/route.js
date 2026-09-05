@@ -8,7 +8,7 @@ import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from ".
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
-export async function GET() {
+export async function GET(request) {
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
@@ -16,6 +16,11 @@ export async function GET() {
   if (!userRole || userRole === "error") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // scope=checkin: the Attendance tab - every open event plus any the user
+  // has already checked into (for their attendance history).
+  // default: the Events tab - only events this user created.
+  const scope = new URL(request.url).searchParams.get("scope") || "mine";
 
   const { data, error } = await supabaseServer
     .from(table("events"))
@@ -29,6 +34,20 @@ export async function GET() {
     rows = await mergeSandboxRows(netID, "events", rows, () => true);
     rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
+
+  if (scope === "checkin") {
+    const { data: mine } = await supabaseServer
+      .from(table("eventCheckins")).select("event_id").eq("net_id", netID);
+    let attendedIds = new Set((mine ?? []).map((r) => r.event_id));
+    if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
+      const merged = await mergeSandboxRows(netID, "eventCheckins", mine ?? [], (r) => r.net_id === netID);
+      attendedIds = new Set(merged.map((r) => r.event_id));
+    }
+    rows = rows.filter((e) => e.check_in_open || attendedIds.has(e.id));
+  } else {
+    rows = rows.filter((e) => e.created_by === netID);
+  }
+
   return NextResponse.json(rows);
 }
 
