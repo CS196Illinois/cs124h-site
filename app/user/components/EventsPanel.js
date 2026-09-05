@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import QRCode from "qrcode";
 import { MagnifyingGlassIcon, ArrowSquareOutIcon, X } from "@phosphor-icons/react";
 import { useUndo } from "../../../components/UndoProvider";
+import { formatLocalDateTime, datetimeLocalToISO } from "../../../lib/dateFormat";
 import styles from "../dashboard.module.css";
 import panelStyles from "./EventsPanel.module.css";
 
@@ -283,7 +284,11 @@ export default function EventsPanel() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        start_time: datetimeLocalToISO(form.start_time),
+        end_time: datetimeLocalToISO(form.end_time),
+      }),
     });
     const json = await res.json();
     if (!res.ok) { setFormError(json.error || "Failed to create event."); setFormLoading(false); return; }
@@ -348,9 +353,7 @@ export default function EventsPanel() {
                   <tr key={event.id}>
                     <td style={{ fontWeight: 500 }}>{event.title}</td>
                     <td style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem" }}>
-                      {event.start_time
-                        ? new Date(event.start_time).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
-                        : "-"}
+                      {formatLocalDateTime(event.start_time) ?? "-"}
                     </td>
                     <td className={styles.cellMono}>{event.created_by ?? "-"}</td>
                     <td>

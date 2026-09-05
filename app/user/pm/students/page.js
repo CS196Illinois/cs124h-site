@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import styles from "../../dashboard.module.css";
 import { downloadCsv } from "../../../../lib/csvExport";
+import { localTodayISO } from "../../../../lib/dateFormat";
 
 function getCurrentSprint(sprints) {
   if (!sprints.length) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayISO();
   const active = sprints.find(
     (s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date
   );

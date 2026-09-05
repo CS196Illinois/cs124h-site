@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import StatusBadge from "./StatusBadge";
 import { averagePct, itemPct } from "../../../lib/grading";
 import { downloadCsv } from "../../../lib/csvExport";
+import { formatDueDate } from "../../../lib/dateFormat";
 
 /**
  * Full grade history for one student - every gradable action item they've
@@ -24,7 +25,7 @@ export default function StudentGradesModal({ student, items, onClose }) {
       `${student.net_id}-grades-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         { key: "title", label: "Assignment" },
-        { key: "due_date", label: "Due Date", value: (i) => (i.due_date ? new Date(i.due_date).toLocaleDateString() : "") },
+        { key: "due_date", label: "Due Date", value: (i) => (i.due_date ? formatDueDate(i.due_date) : "") },
         { key: "grade", label: "Grade", value: (i) => i.grade ?? "" },
         { key: "max_score", label: "Max Score", value: (i) => i.max_score ?? "" },
         { key: "percent", label: "Percent", value: (i) => { const p = itemPct(i); return p != null ? p.toFixed(1) : ""; } },
@@ -69,7 +70,7 @@ export default function StudentGradesModal({ student, items, onClose }) {
                 return (
                   <tr key={i.id}>
                     <td>{i.title}</td>
-                    <td style={{ color: "rgba(249,249,249,0.55)" }}>{i.due_date ? new Date(i.due_date).toLocaleDateString() : "—"}</td>
+                    <td style={{ color: "rgba(249,249,249,0.55)" }}>{i.due_date ? formatDueDate(i.due_date) : "—"}</td>
                     <td><StatusBadge item={i} /></td>
                     <td style={{ fontWeight: 600 }}>{pct != null ? `${pct.toFixed(1)}%` : <span style={{ opacity: 0.3 }}>—</span>}</td>
                   </tr>

@@ -14,6 +14,7 @@ import PersonAccordion from "../../components/PersonAccordion";
 import ActionItemRow from "../../components/ActionItemRow";
 import StatusBadge from "../../components/StatusBadge";
 import EmptyState from "../../components/EmptyState";
+import { formatDueDate } from "../../../../lib/dateFormat";
 
 export default function PMActionItems() {
   const { data: session, status } = useSession();
@@ -162,7 +163,7 @@ export default function PMActionItems() {
                     {assignedBy === myNetId && <span style={{ marginLeft: "0.35rem", color: "#4f8dde", fontSize: "0.72rem" }}>(you)</span>}
                   </td>
                   <td style={{ color: "rgba(249,249,249,0.6)", fontSize: "0.85rem" }}>
-                    {item.due_date ? new Date(item.due_date).toLocaleDateString() : "-"}
+                    {item.due_date ? formatDueDate(item.due_date) : "-"}
                   </td>
                   <td><StatusBadge item={item} /></td>
                   <td>

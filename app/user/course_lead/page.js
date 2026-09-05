@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
+import { formatDueDate } from "../../../lib/dateFormat";
 
 function roleBadge(roleId, roles, s) {
   const def = roles.find((r) => r.id === roleId);
@@ -136,7 +137,7 @@ export default function CourseLeadDashboard() {
                       <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</td>
                       <td className={styles.cellMono}>{item.net_id}</td>
                       <td style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.82rem" }}>
-                        {item.due_date ? new Date(item.due_date).toLocaleDateString() : "-"}
+                        {item.due_date ? formatDueDate(item.due_date) : "-"}
                       </td>
                     </tr>
                   ))}
