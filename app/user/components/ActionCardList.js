@@ -2,7 +2,7 @@
 
 import styles from "../dashboard.module.css";
 import { gradingStatus, formatGrade } from "../../../lib/grading";
-import { formatDueDate } from "../../../lib/dateFormat";
+import { formatDueDate, formatLocalDate } from "../../../lib/dateFormat";
 
 export default function ActionCardList({ items, onToggle }) {
   return (
@@ -37,7 +37,7 @@ export default function ActionCardList({ items, onToggle }) {
                   <span className={styles.actionMetaItem}>Due {formatDueDate(item.due_date)}</span>
                 )}
                 {item.completion_date && item.is_done && (
-                  <span className={styles.actionMetaItem}>Completed {new Date(item.completion_date).toLocaleDateString()}</span>
+                  <span className={styles.actionMetaItem}>Completed {formatLocalDate(item.completion_date)}</span>
                 )}
                 {(item.assigned_by || item.additional_info?.assigned_by) && (
                   <span className={styles.actionMetaItem}>

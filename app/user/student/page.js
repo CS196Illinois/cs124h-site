@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
-import { localTodayISO, formatDueDate } from "../../../lib/dateFormat";
+import { localTodayISO, formatDueDate, formatLocalDate } from "../../../lib/dateFormat";
 
 export default function StudentDashboard() {
   const { data: session, status } = useSession();
@@ -233,7 +233,7 @@ export default function StudentDashboard() {
                     <div className={styles.actionMeta}>
                       {item.completion_date && (
                         <span className={styles.actionMetaItem}>
-                          Completed {new Date(item.completion_date).toLocaleDateString()}
+                          Completed {formatLocalDate(item.completion_date)}
                         </span>
                       )}
                     </div>

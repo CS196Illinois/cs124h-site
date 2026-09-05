@@ -4,6 +4,7 @@ import { authOptions } from "../../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../../lib/supabaseServer";
 import { table } from "../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, sandboxWrite } from "../../../../lib/sandbox";
+import { canAdminEvents } from "../../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -33,7 +34,7 @@ export async function PATCH(request, { params }) {
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
     const { data: realRow } = await supabaseServer.from(table("events")).select("*").eq("id", id).maybeSingle();
     const current = await getEffectiveRow(netID, "events", id, realRow);
-    if (!current || current.created_by !== netID) {
+    if (!current || (current.created_by !== netID && !canAdminEvents(userRole))) {
       return NextResponse.json({ error: "Not found, or you don't have permission to edit this event" }, { status: 403 });
     }
     const merged = { ...current, ...updates };
@@ -41,10 +42,10 @@ export async function PATCH(request, { params }) {
     return NextResponse.json(merged);
   }
 
-  // Only the person who created the event can manage it.
-  const { data, error } = await supabaseServer
-    .from(table("events")).update(updates).eq("id", id).eq("created_by", netID)
-    .select().maybeSingle();
+  // Only the event's creator can manage it - course leads / lead web dev too.
+  let query = supabaseServer.from(table("events")).update(updates).eq("id", id);
+  if (!canAdminEvents(userRole)) query = query.eq("created_by", netID);
+  const { data, error } = await query.select().maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) {
     return NextResponse.json({ error: "Not found, or you don't have permission to edit this event" }, { status: 403 });
@@ -66,16 +67,16 @@ export async function DELETE(request, { params }) {
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
     const { data: realRow } = await supabaseServer.from(table("events")).select("*").eq("id", id).maybeSingle();
     const current = await getEffectiveRow(netID, "events", id, realRow);
-    if (!current || current.created_by !== netID) {
+    if (!current || (current.created_by !== netID && !canAdminEvents(userRole))) {
       return NextResponse.json({ error: "Not found, or you don't have permission to delete this event" }, { status: 403 });
     }
     await sandboxWrite(netID, "events", "delete", id, null);
     return NextResponse.json({ success: true });
   }
 
-  const { data, error } = await supabaseServer
-    .from(table("events")).delete().eq("id", id).eq("created_by", netID)
-    .select("id");
+  let query = supabaseServer.from(table("events")).delete().eq("id", id);
+  if (!canAdminEvents(userRole)) query = query.eq("created_by", netID);
+  const { data, error } = await query.select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   // A scoped delete matching 0 rows means either the event doesn't exist, or
   // (more likely) it belongs to someone else and this caller isn't full-access -

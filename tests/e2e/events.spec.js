@@ -192,7 +192,7 @@ test.describe("events: create, check-in toggle, and creator-scoped permissions",
     expect(data.check_in_open).toBe(true);
   });
 
-  test("only the creator sees their event in the Events tab - not another pm, not a course lead", async ({ page, loginAs }) => {
+  test("a pm sees only their own events; a course lead sees every event", async ({ page, loginAs }) => {
     await insertUser({ net_id: "e2e-pm-owner", role: "PM", group_number: 1 });
     await insertUser({ net_id: "e2e-pm-other", role: "PM", group_number: 2 });
     await insertEvent({ title: "Owner's Event", created_by: "e2e-pm-owner" });
@@ -203,12 +203,12 @@ test.describe("events: create, check-in toggle, and creator-scoped permissions",
     await expect(page.getByText("No events yet.", { exact: false })).toBeVisible();
     await expect(page.getByText("Owner's Event", { exact: true })).not.toBeVisible();
 
-    // Neither does a course lead.
+    // A course lead does (the escape hatch for an orphaned event).
     await loginAs({ netID: "e2e-lead", role: "course_lead" });
     await page.goto("/user/course_lead/events");
-    await expect(page.getByText("Owner's Event", { exact: true })).not.toBeVisible();
+    await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible();
 
-    // The creator does.
+    // And so does the creator.
     await loginAs({ netID: "e2e-pm-owner", role: "pm" });
     await page.goto("/user/pm/events");
     await expect(page.getByText("Owner's Event", { exact: true })).toBeVisible();
