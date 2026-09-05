@@ -9,6 +9,7 @@ const { PATCH, DELETE } = await import("../../app/api/events/[id]/route");
 const { GET: GET_CHECKIN, POST: POST_CHECKIN } = await import("../../app/api/events/[id]/checkin/route");
 const { GET: GET_CODE, deriveCode } = await import("../../app/api/events/[id]/code/route");
 const { GET: GET_MY_CHECKINS } = await import("../../app/api/events/my-checkins/route");
+const { POST: POST_MANUAL, DELETE: DELETE_MANUAL } = await import("../../app/api/events/[id]/checkin/manual/route");
 
 afterAll(clearAllTestTables);
 
@@ -43,7 +44,7 @@ describe("GET/POST /api/events", () => {
 describe("PATCH/DELETE /api/events/[id]", () => {
   beforeEach(clearAllTestTables);
 
-  it("only the event's creator can edit or delete it - even a course lead cannot touch someone else's", async () => {
+  it("a pm or head pm can only touch events they created; a course lead can touch any", async () => {
     const mine = await insertEvent({ title: "mine", created_by: "pm1" });
     const others = await insertEvent({ title: "theirs", created_by: "pm2" });
     asRole("pm", "pm1");
@@ -60,14 +61,22 @@ describe("PATCH/DELETE /api/events/[id]", () => {
     );
     expect(blocked.status).toBe(403);
 
-    asRole("course_lead", "lead1");
-    const leadBlocked = await PATCH(
+    asRole("head_pm", "head1");
+    const headBlocked = await PATCH(
       makeRequest(`http://localhost/api/events/${others.id}`, { method: "PATCH", body: { title: "hacked" } }),
       { params: { id: others.id } }
     );
-    expect(leadBlocked.status).toBe(403);
+    expect(headBlocked.status).toBe(403);
+
+    // A course lead is an event admin - the escape hatch for an orphaned event.
+    asRole("course_lead", "lead1");
+    const leadEdit = await PATCH(
+      makeRequest(`http://localhost/api/events/${others.id}`, { method: "PATCH", body: { title: "cleaned up" } }),
+      { params: { id: others.id } }
+    );
+    expect((await leadEdit.json()).title).toBe("cleaned up");
     const leadDel = await DELETE(makeRequest(`http://localhost/api/events/${others.id}`, { method: "DELETE" }), { params: { id: others.id } });
-    expect(leadDel.status).toBe(403);
+    expect(leadDel.status).toBe(200);
   });
 
   it("the creator can open check-in and delete their own event", async () => {
@@ -90,12 +99,17 @@ describe("PATCH/DELETE /api/events/[id]", () => {
 describe("GET /api/events scoping", () => {
   beforeEach(clearAllTestTables);
 
-  it("the Events tab (default scope) returns only events you created", async () => {
+  it("the Events tab (default scope) returns only events you created - but a course lead sees all", async () => {
     await insertEvent({ title: "pm1 event", created_by: "pm1" });
     await insertEvent({ title: "pm2 event", created_by: "pm2" });
+
     asRole("pm", "pm1");
-    const list = await (await GET(makeRequest("http://localhost/api/events"))).json();
-    expect(list.map((e) => e.title)).toEqual(["pm1 event"]);
+    const mine = await (await GET(makeRequest("http://localhost/api/events"))).json();
+    expect(mine.map((e) => e.title)).toEqual(["pm1 event"]);
+
+    asRole("course_lead", "lead1");
+    const all = await (await GET(makeRequest("http://localhost/api/events"))).json();
+    expect(all.map((e) => e.title).sort()).toEqual(["pm1 event", "pm2 event"]);
   });
 
   it("the Attendance tab (scope=checkin) returns open events plus ones you've attended", async () => {
@@ -201,6 +215,33 @@ describe("event check-ins - sandbox mode", () => {
 
     const mine = await (await GET_MY_CHECKINS(makeRequest("http://localhost/api/events/my-checkins"))).json();
     expect(mine.map((c) => c.event_id)).toEqual([event.id]);
+  });
+
+  it("a sandboxed manual add/remove writes only to the overlay, never the real table", async () => {
+    await insertUser({ net_id: "webdev1", role: "WEB", sandbox_mode: "persistent" });
+    const event = await insertEvent({ title: "e", created_by: "webdev1" });
+    asRole("web_dev", "webdev1");
+
+    const add = await POST_MANUAL(
+      makeRequest(`http://localhost/api/events/${event.id}/checkin/manual`, { method: "POST", body: { net_id: "guest1" } }),
+      { params: { id: event.id } }
+    );
+    expect(add.status).toBe(201);
+
+    let real = (await testClient().from(table("eventCheckins")).select("*").eq("event_id", event.id)).data;
+    expect(real).toHaveLength(0);
+    let attendees = await (await GET_CHECKIN(makeRequest(`http://localhost/api/events/${event.id}/checkin`), { params: { id: event.id } })).json();
+    expect(attendees.map((a) => a.net_id)).toEqual(["guest1"]);
+
+    const remove = await DELETE_MANUAL(
+      makeRequest(`http://localhost/api/events/${event.id}/checkin/manual?net_id=guest1`, { method: "DELETE" }),
+      { params: { id: event.id } }
+    );
+    expect(remove.status).toBe(200);
+    attendees = await (await GET_CHECKIN(makeRequest(`http://localhost/api/events/${event.id}/checkin`), { params: { id: event.id } })).json();
+    expect(attendees).toHaveLength(0);
+    real = (await testClient().from(table("eventCheckins")).select("*").eq("event_id", event.id)).data;
+    expect(real).toHaveLength(0);
   });
 
   it("a sandboxed duplicate check-in still 409s (unique constraint simulated against the overlay)", async () => {

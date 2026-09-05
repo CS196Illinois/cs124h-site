@@ -1,8 +1,10 @@
 import { getServerSession } from "next-auth";
 import { NextResponse, after } from "next/server";
+import { randomUUID } from "crypto";
 import { authOptions } from "../../../../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../../../../lib/supabaseServer";
 import { table } from "../../../../../../lib/tables";
+import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../../../../lib/sandbox";
 import { getManagedEvent } from "../../../../../../lib/events";
 import { syncEventAttendance } from "../../../../../../lib/eventAttendanceSync";
 
@@ -28,6 +30,23 @@ export async function POST(request, { params }) {
   const cleanNetId = net_id?.trim().toLowerCase();
   if (!cleanNetId) {
     return NextResponse.json({ error: "net_id is required" }, { status: 400 });
+  }
+
+  if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
+    const { data: realRows } = await supabaseServer
+      .from(table("eventCheckins")).select("*").eq("event_id", id).eq("net_id", cleanNetId);
+    const merged = await mergeSandboxRows(
+      netID, "eventCheckins", realRows ?? [],
+      (row) => row.event_id === id && row.net_id === cleanNetId,
+    );
+    if (merged[0]) {
+      return NextResponse.json({ error: `${cleanNetId} is already checked in.` }, { status: 409 });
+    }
+    const checkinId = randomUUID();
+    await sandboxWrite(netID, "eventCheckins", "insert", checkinId, {
+      id: checkinId, event_id: id, net_id: cleanNetId, checked_in_at: new Date().toISOString(),
+    });
+    return NextResponse.json({ success: true }, { status: 201 });
   }
 
   const { error } = await supabaseServer
@@ -65,6 +84,19 @@ export async function DELETE(request, { params }) {
   const netId = searchParams.get("net_id");
   if (!netId) {
     return NextResponse.json({ error: "net_id is required" }, { status: 400 });
+  }
+
+  if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
+    const { data: realRows } = await supabaseServer
+      .from(table("eventCheckins")).select("*").eq("event_id", id).eq("net_id", netId);
+    const merged = await mergeSandboxRows(
+      netID, "eventCheckins", realRows ?? [],
+      (row) => row.event_id === id && row.net_id === netId,
+    );
+    if (merged[0]) {
+      await sandboxWrite(netID, "eventCheckins", "delete", String(merged[0].id), null);
+    }
+    return NextResponse.json({ success: true });
   }
 
   const { error } = await supabaseServer

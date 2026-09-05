@@ -5,6 +5,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../lib/sandbox";
+import { canAdminEvents } from "../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -19,7 +20,8 @@ export async function GET(request) {
 
   // scope=checkin: the Attendance tab - every open event plus any the user
   // has already checked into (for their attendance history).
-  // default: the Events tab - only events this user created.
+  // default: the Events tab - only events this user created (course
+  // leads / lead web dev see all, so an orphaned event stays reachable).
   const scope = new URL(request.url).searchParams.get("scope") || "mine";
 
   const { data, error } = await supabaseServer
@@ -44,7 +46,7 @@ export async function GET(request) {
       attendedIds = new Set(merged.map((r) => r.event_id));
     }
     rows = rows.filter((e) => e.check_in_open || attendedIds.has(e.id));
-  } else {
+  } else if (!canAdminEvents(userRole)) {
     rows = rows.filter((e) => e.created_by === netID);
   }
 
