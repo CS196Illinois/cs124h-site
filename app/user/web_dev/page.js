@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
 import SandboxPanel from "../components/SandboxPanel";
+import { localTodayISO, formatDueDate } from "../../../lib/dateFormat";
 
 function expiryLabel(expires_at) {
   if (!expires_at) return "Permanent";
@@ -69,7 +70,7 @@ export default function WebDevDashboard() {
     if (reqRes.ok) setRequests(await reqRes.json());
     if (spRes.ok) {
       const spData = await spRes.json();
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localTodayISO();
       const cur = spData.find((s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date) || spData[0] || null;
       setCurrentSprint(cur);
       if (cur) {
@@ -176,7 +177,7 @@ export default function WebDevDashboard() {
         </div>
       )}
 
-      <div className={styles.twoCol}>
+      <div className={styles.threeCol} style={{ alignItems: "start" }}>
         {/* Students preview */}
         <div className={styles.panel}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -263,7 +264,7 @@ export default function WebDevDashboard() {
                       <span className={styles.actionMetaItem}>{item.net_id}</span>
                       {item.due_date && (
                         <span className={styles.actionMetaItem}>
-                          Due {new Date(item.due_date).toLocaleDateString()}
+                          Due {formatDueDate(item.due_date)}
                         </span>
                       )}
                     </div>
@@ -278,11 +279,10 @@ export default function WebDevDashboard() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className={styles.twoCol}>
-        {/* Role view access panel */}
-        <div className={styles.panel}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", minWidth: 0 }}>
+          {/* Role view access panel */}
+          <div className={styles.panel}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <span style={{ color: "#f9f9f9", fontFamily: "Inter", fontWeight: 600 }}>Role View Access</span>
           </div>
@@ -356,7 +356,8 @@ export default function WebDevDashboard() {
           )}
         </div>
 
-        <SandboxPanel />
+          <SandboxPanel />
+        </div>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import StudentGradesModal from "./StudentGradesModal";
 import StatusBadge from "./StatusBadge";
 import { buildAssignments, assignmentLabel, averagePct, itemPct, pivotColumns } from "../../../lib/grading";
 import { downloadCsv } from "../../../lib/csvExport";
+import { localTodayISO } from "../../../lib/dateFormat";
 
 function fmtPct(pct) {
   return pct != null ? `${pct.toFixed(1)}%` : "—";
@@ -128,7 +129,7 @@ export default function GradebookAssignments({ students, items, groupBy }) {
   const assignment = assignments.find((a) => a.key === selectedKey) ?? assignments[0];
   const assignedCount = assignment.items.length;
   const gradedCount = assignment.items.filter((i) => i.grade != null).length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayISO();
   const fileBase = `${slugify(assignment.title)}-${today}`;
 
   const toggle = (g) => {

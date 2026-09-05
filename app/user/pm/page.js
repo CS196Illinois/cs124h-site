@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
+import { localTodayISO, formatDueDate } from "../../../lib/dateFormat";
 
 export default function PMDashboard() {
   const { data: session, status } = useSession();
@@ -29,7 +30,7 @@ export default function PMDashboard() {
     if (itemsRes.ok) setActionItems(await itemsRes.json());
     if (spRes.ok) {
       const spData = await spRes.json();
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localTodayISO();
       const cur = spData.find((s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date) || spData[0] || null;
       setCurrentSprint(cur);
       if (cur) {
@@ -203,7 +204,7 @@ export default function PMDashboard() {
                       <span className={styles.actionMetaItem}>{item.net_id}</span>
                       {item.due_date && (
                         <span className={styles.actionMetaItem}>
-                          Due {new Date(item.due_date).toLocaleDateString()}
+                          Due {formatDueDate(item.due_date)}
                         </span>
                       )}
                     </div>

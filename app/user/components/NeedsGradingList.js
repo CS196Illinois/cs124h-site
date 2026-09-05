@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "../dashboard.module.css";
+import { formatDueDate } from "../../../lib/dateFormat";
 
 /**
  * Flat "needs my grading" list for the assigner. Items sharing a batch_id
@@ -66,7 +67,7 @@ export default function NeedsGradingList({ items, allItems, peopleByNetId, onGra
                 )}
               </td>
               <td style={{ color: "rgba(249,249,249,0.6)", fontSize: "0.85rem" }}>
-                {row.due_date ? new Date(row.due_date).toLocaleDateString() : "-"}
+                {row.due_date ? formatDueDate(row.due_date) : "-"}
               </td>
               <td>
                 <div style={{ display: "flex", gap: "0.4rem" }}>

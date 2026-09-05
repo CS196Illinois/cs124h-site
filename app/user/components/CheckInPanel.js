@@ -31,7 +31,7 @@ function CheckInPanelInner() {
   const focusedInputRef = useRef(null);
 
   const fetchEvents = useCallback(async () => {
-    const res = await fetch("/api/events");
+    const res = await fetch("/api/events?scope=checkin");
     if (!res.ok) return;
     setEvents(await res.json());
   }, []);
