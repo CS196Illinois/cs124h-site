@@ -176,7 +176,7 @@ export default function WebDevDashboard() {
         </div>
       )}
 
-      <div className={styles.twoCol}>
+      <div className={styles.threeCol} style={{ alignItems: "start" }}>
         {/* Students preview */}
         <div className={styles.panel}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -278,11 +278,10 @@ export default function WebDevDashboard() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className={styles.twoCol}>
-        {/* Role view access panel */}
-        <div className={styles.panel}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", minWidth: 0 }}>
+          {/* Role view access panel */}
+          <div className={styles.panel}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <span style={{ color: "#f9f9f9", fontFamily: "Inter", fontWeight: 600 }}>Role View Access</span>
           </div>
@@ -356,7 +355,8 @@ export default function WebDevDashboard() {
           )}
         </div>
 
-        <SandboxPanel />
+          <SandboxPanel />
+        </div>
       </div>
     </div>
   );
