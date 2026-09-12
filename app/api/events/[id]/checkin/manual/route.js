@@ -19,17 +19,17 @@ export async function POST(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!(await getManagedEvent(id, netID, userRole))) {
-    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
   const { net_id } = await request.json();
   const cleanNetId = net_id?.trim().toLowerCase();
   if (!cleanNetId) {
-    return NextResponse.json({ error: "net_id is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a person." }, { status: 400 });
   }
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -57,7 +57,7 @@ export async function POST(request, { params }) {
     if (error.code === "23505") {
       return NextResponse.json({ error: `${cleanNetId} is already checked in.` }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
 
   after(() => syncEventAttendance(id).catch((e) => console.error(`manual add sheet sync failed for event ${id}:`, e.message)));
@@ -73,17 +73,17 @@ export async function DELETE(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!(await getManagedEvent(id, netID, userRole))) {
-    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
   const { searchParams } = new URL(request.url);
   const netId = searchParams.get("net_id");
   if (!netId) {
-    return NextResponse.json({ error: "net_id is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a person." }, { status: 400 });
   }
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -105,7 +105,7 @@ export async function DELETE(request, { params }) {
     .eq("event_id", id)
     .eq("net_id", netId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   after(() => syncEventAttendance(id).catch((e) => console.error(`manual remove sheet sync failed for event ${id}:`, e.message)));
 

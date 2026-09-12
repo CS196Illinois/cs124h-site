@@ -11,6 +11,6 @@ export async function GET() {
     .order("semester_order", { ascending: true })
     .order("member_order", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data ?? []);
 }

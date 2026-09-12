@@ -11,7 +11,7 @@ import { SHEET_ACCESS_PATH_ROLES } from "../../../lib/sheetAccess";
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!SHEET_ACCESS_PATH_ROLES.has(session?.user?.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
   return NextResponse.json({ url: `https://docs.google.com/spreadsheets/d/${spreadsheetId()}/edit` });
 }

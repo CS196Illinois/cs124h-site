@@ -14,7 +14,7 @@ export async function PATCH(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -35,7 +35,7 @@ export async function PATCH(request, { params }) {
     const { data: realRow } = await supabaseServer.from(table("events")).select("*").eq("id", id).maybeSingle();
     const current = await getEffectiveRow(netID, "events", id, realRow);
     if (!current || (current.created_by !== netID && !canAdminEvents(userRole))) {
-      return NextResponse.json({ error: "Not found, or you don't have permission to edit this event" }, { status: 403 });
+      return NextResponse.json({ error: "That event could not be found, or you do not have permission to edit it." }, { status: 403 });
     }
     const merged = { ...current, ...updates };
     await sandboxWrite(netID, "events", "update", id, merged);
@@ -46,9 +46,9 @@ export async function PATCH(request, { params }) {
   let query = supabaseServer.from(table("events")).update(updates).eq("id", id);
   if (!canAdminEvents(userRole)) query = query.eq("created_by", netID);
   const { data, error } = await query.select().maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   if (!data) {
-    return NextResponse.json({ error: "Not found, or you don't have permission to edit this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to edit it." }, { status: 403 });
   }
   return NextResponse.json(data);
 }
@@ -59,7 +59,7 @@ export async function DELETE(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -68,7 +68,7 @@ export async function DELETE(request, { params }) {
     const { data: realRow } = await supabaseServer.from(table("events")).select("*").eq("id", id).maybeSingle();
     const current = await getEffectiveRow(netID, "events", id, realRow);
     if (!current || (current.created_by !== netID && !canAdminEvents(userRole))) {
-      return NextResponse.json({ error: "Not found, or you don't have permission to delete this event" }, { status: 403 });
+      return NextResponse.json({ error: "That event could not be found, or you do not have permission to delete it." }, { status: 403 });
     }
     await sandboxWrite(netID, "events", "delete", id, null);
     return NextResponse.json({ success: true });
@@ -77,12 +77,12 @@ export async function DELETE(request, { params }) {
   let query = supabaseServer.from(table("events")).delete().eq("id", id);
   if (!canAdminEvents(userRole)) query = query.eq("created_by", netID);
   const { data, error } = await query.select("id");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   // A scoped delete matching 0 rows means either the event doesn't exist, or
   // (more likely) it belongs to someone else and this caller isn't full-access -
   // surface that instead of silently no-opping.
   if (!data || data.length === 0) {
-    return NextResponse.json({ error: "Not found, or you don't have permission to delete this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to delete it." }, { status: 403 });
   }
   return NextResponse.json({ success: true });
 }

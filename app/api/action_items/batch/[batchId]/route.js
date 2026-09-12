@@ -17,15 +17,15 @@ export async function PATCH(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "student" || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { batchId } = await params;
   const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
   const entries = Array.isArray(body.grades) ? body.grades : [];
   if (entries.length === 0) {
-    return NextResponse.json({ error: "No grades provided" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter at least one grade." }, { status: 400 });
   }
 
   const sandboxed = isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off";
@@ -34,17 +34,17 @@ export async function PATCH(request, { params }) {
     .from(table("actionItems"))
     .select("*")
     .eq("batch_id", batchId);
-  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  if (fetchErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let items = realItems;
   if (sandboxed) {
     items = await mergeSandboxRows(netID, "actionItems", realItems, (row) => row.batch_id === batchId);
   }
   if (!items || items.length === 0) {
-    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    return NextResponse.json({ error: "That group of assignments could not be found." }, { status: 404 });
   }
   if (items.some((item) => item.assigned_by !== netID)) {
-    return NextResponse.json({ error: "Only the person who assigned this batch can grade it" }, { status: 403 });
+    return NextResponse.json({ error: "Only the person who assigned this work can grade it." }, { status: 403 });
   }
 
   const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
@@ -130,7 +130,7 @@ export async function DELETE(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "student" || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { batchId } = await params;
@@ -140,19 +140,19 @@ export async function DELETE(request, { params }) {
     .from(table("actionItems"))
     .select("id")
     .eq("batch_id", batchId);
-  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  if (fetchErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let items = realItems;
   if (sandboxed) {
     items = await mergeSandboxRows(netID, "actionItems", realItems, (row) => row.batch_id === batchId);
   }
   if (!items || items.length === 0) {
-    return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    return NextResponse.json({ error: "That group of assignments could not be found." }, { status: 404 });
   }
 
   for (const item of items) {
     if (!(await canManageItem(userRole, netID, item.id))) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
     }
   }
 
@@ -162,7 +162,7 @@ export async function DELETE(request, { params }) {
   }
 
   const { error } = await supabaseServer.from(table("actionItems")).delete().eq("batch_id", batchId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   return NextResponse.json({ success: true, count: items.length });
 }

@@ -11,17 +11,17 @@ export async function PATCH(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
   if (["is_done", "is_gradable"].some((key) => body[key] !== undefined && typeof body[key] !== "boolean")) {
-    return NextResponse.json({ error: "Completion and gradable flags must be booleans" }, { status: 400 });
+    return NextResponse.json({ error: "Completion and grading options must be selected as yes or no." }, { status: 400 });
   }
   if (body.grade_note != null && typeof body.grade_note !== "string") return NextResponse.json({ error: "Feedback must be text" }, { status: 400 });
-  if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) return NextResponse.json({ error: "Please enter a title." }, { status: 400 });
   const updates = {};
   let gradingSnapshot = null;
 
@@ -39,7 +39,7 @@ export async function PATCH(request, { params }) {
     if (userRole !== "student" && !sandboxed) {
       const { data: current } = await supabaseServer.from(table("actionItems")).select("net_id").eq("id", id).maybeSingle();
       if (current?.net_id !== netID && !(await canManageItem(userRole, netID, id))) {
-        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
       }
     }
     updates.is_done = body.is_done;
@@ -63,11 +63,11 @@ export async function PATCH(request, { params }) {
 
   if (isContentEdit) {
     if (userRole === "student") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
     }
     const allowed = await canManageItem(userRole, netID, id);
     if (!allowed) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
     }
     if (body.title !== undefined) updates.title = body.title;
     if (body.description !== undefined) updates.description = body.description;
@@ -94,21 +94,21 @@ export async function PATCH(request, { params }) {
   // Grading is a separate authority: only the person who assigned the item can grade it.
   if (body.grade !== undefined) {
     if (userRole === "student") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
     }
     const item = sandboxed
       ? effectiveItem
       : (await supabaseServer.from(table("actionItems")).select("is_gradable, is_done, assigned_by, max_score").eq("id", id).maybeSingle()).data;
-    if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!item) return NextResponse.json({ error: "We could not find that item." }, { status: 404 });
     gradingSnapshot = item;
     if (!(updates.is_gradable ?? item.is_gradable)) {
-      return NextResponse.json({ error: "This item is not gradable" }, { status: 400 });
+      return NextResponse.json({ error: "This work item does not accept a grade." }, { status: 400 });
     }
     if (!(updates.is_done ?? item.is_done)) {
-      return NextResponse.json({ error: "Item must be completed before it can be graded" }, { status: 400 });
+      return NextResponse.json({ error: "Mark the work complete before entering a grade." }, { status: 400 });
     }
     if (item.assigned_by !== netID) {
-      return NextResponse.json({ error: "Only the person who assigned this item can grade it" }, { status: 403 });
+      return NextResponse.json({ error: "Only the person who assigned this work can grade it." }, { status: 403 });
     }
 
     if (body.grade === null) {
@@ -119,7 +119,7 @@ export async function PATCH(request, { params }) {
     } else {
       const g = Number(body.grade);
       if (!["number", "string"].includes(typeof body.grade) || String(body.grade).trim() === "" || !Number.isFinite(g) || g < 0) {
-        return NextResponse.json({ error: "Grade must be a non-negative number" }, { status: 400 });
+        return NextResponse.json({ error: "Enter a grade of 0 or higher." }, { status: 400 });
       }
       const maxScore = updates.max_score !== undefined ? updates.max_score : item.max_score;
       if (maxScore != null && g > maxScore) {
@@ -136,19 +136,19 @@ export async function PATCH(request, { params }) {
     const current = sandboxed ? effectiveItem : (await supabaseServer.from(table("actionItems")).select("grade, is_gradable").eq("id", id).maybeSingle()).data;
     const nextGrade = updates.grade !== undefined ? updates.grade : current?.grade;
     if (updates.max_score != null && nextGrade != null && nextGrade > updates.max_score) {
-      return NextResponse.json({ error: "Maximum score cannot be lower than the existing grade" }, { status: 400 });
+      return NextResponse.json({ error: "The maximum score cannot be lower than the current grade." }, { status: 400 });
     }
   }
   if (updates.is_gradable === false) updates.max_score = null;
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    return NextResponse.json({ error: "Please provide at least one field to change." }, { status: 400 });
   }
 
   if (sandboxed) {
     // effectiveItem was already resolved above - students are never
     // sandboxed, so the net_id-scoping the real path needs doesn't apply.
-    if (!effectiveItem) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!effectiveItem) return NextResponse.json({ error: "We could not find that item." }, { status: 404 });
     const merged = { ...effectiveItem, ...updates };
     await sandboxWrite(netID, "actionItems", "update", id, merged);
     return NextResponse.json(merged);
@@ -164,7 +164,7 @@ export async function PATCH(request, { params }) {
     query = gradingSnapshot.max_score == null ? query.is("max_score", null) : query.eq("max_score", gradingSnapshot.max_score);
   }
   const { data, error } = await query.select().maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Item changed or is no longer available; reload and retry" }, { status: 409 });
   return NextResponse.json(data);
 }
@@ -175,13 +175,13 @@ export async function DELETE(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "student" || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { id } = await params;
   const allowed = await canManageItem(userRole, netID, id);
   if (!allowed) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -190,7 +190,7 @@ export async function DELETE(request, { params }) {
   }
 
   const { error } = await supabaseServer.from(table("actionItems")).delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json({ success: true });
 }
 

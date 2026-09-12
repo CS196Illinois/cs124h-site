@@ -16,7 +16,7 @@ export async function PATCH(request, { params }) {
   const callerNetId = session?.user?.netID;
 
   if (!userRole || userRole === "error" || userRole === "student") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { net_id } = await params;
@@ -28,7 +28,7 @@ export async function PATCH(request, { params }) {
 
   if (body.role !== undefined) {
     if (!FULL_USER_ACCESS.includes(userRole) && userRole !== "lead_web_dev") {
-      return NextResponse.json({ error: "Insufficient permissions to change roles" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to change this person’s role." }, { status: 403 });
     }
     if (userRole === "lead_web_dev" && !WEB_TEAM_ROLES.includes(body.role)) {
       return NextResponse.json({ error: "Lead Web Devs can only assign WEB or LEAD_WEB roles" }, { status: 403 });
@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
     const { data: realTarget } = await supabaseServer.from(table("users")).select("*").eq("net_id", net_id).maybeSingle();
     const target = sandboxed ? await getEffectiveRow(callerNetId, "users", net_id, realTarget) : realTarget;
     if (!target || !allowed.includes(target.role)) {
-      return NextResponse.json({ error: "Insufficient permissions to edit this user" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to edit this person." }, { status: 403 });
     }
     // head_pm cannot change roles
     if (userRole === "head_pm" && body.role !== undefined) {
@@ -53,13 +53,13 @@ export async function PATCH(request, { params }) {
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    return NextResponse.json({ error: "Please provide at least one field to change." }, { status: 400 });
   }
 
   if (sandboxed) {
     const { data: realRow } = await supabaseServer.from(table("users")).select("*").eq("net_id", net_id).maybeSingle();
     const current = await getEffectiveRow(callerNetId, "users", net_id, realRow);
-    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!current) return NextResponse.json({ error: "We could not find that item." }, { status: 404 });
     const merged = { ...current, ...updates };
     // A sandboxed edit must never trigger a real side effect on the target's
     // own (real) sandbox - resetSandbox below only ever runs on the real
@@ -75,7 +75,7 @@ export async function PATCH(request, { params }) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   // "until their access is revoked" - a role change away from the web team
   // clears any sandbox (ephemeral or persistent) regardless of the user's
@@ -101,7 +101,7 @@ export async function DELETE(request, { params }) {
 
   const canDelete = FULL_USER_ACCESS.includes(userRole) || userRole === "lead_web_dev" || userRole === "head_pm";
   if (!canDelete) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   const { net_id } = await params;
@@ -112,7 +112,7 @@ export async function DELETE(request, { params }) {
     const { data: realTarget } = await supabaseServer.from(table("users")).select("*").eq("net_id", net_id).maybeSingle();
     const target = sandboxed ? await getEffectiveRow(callerNetId, "users", net_id, realTarget) : realTarget;
     if (!target || !allowed.includes(target.role)) {
-      return NextResponse.json({ error: "Insufficient permissions to remove this user" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to remove this person." }, { status: 403 });
     }
   }
 
@@ -129,7 +129,7 @@ export async function DELETE(request, { params }) {
     .delete()
     .eq("net_id", net_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   // Hygiene: a removed user can never reach a sandboxed route again, so
   // this is just avoiding an orphaned overlay, not a security requirement.

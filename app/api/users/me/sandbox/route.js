@@ -10,7 +10,7 @@ async function requireSandboxUser() {
   const session = await getServerSession(authOptions);
   const netID = session?.user?.netID;
   const role = session?.user?.role;
-  if (!netID || !role) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  if (!netID || !role) return { error: NextResponse.json({ error: "Please sign in to continue." }, { status: 401 }) };
   if (!isSandboxRole(role)) return { error: NextResponse.json({ error: "Sandbox mode is only available to web devs" }, { status: 403 }) };
   return { netID };
 }
@@ -18,7 +18,8 @@ async function requireSandboxUser() {
 export async function GET() {
   const { netID, error } = await requireSandboxUser();
   if (error) return error;
-  return NextResponse.json({ mode: await getSandboxMode(netID) });
+  try { return NextResponse.json({ mode: await getSandboxMode(netID) }); }
+  catch { return NextResponse.json({ error: "Sandbox settings could not be loaded. Please try again." }, { status: 500 }); }
 }
 
 export async function PATCH(request) {
@@ -28,11 +29,15 @@ export async function PATCH(request) {
   const body = await request.json().catch(() => null);
   const mode = body?.mode;
   if (!["off", "ephemeral", "persistent"].includes(mode)) {
-    return NextResponse.json({ error: "mode must be one of off, ephemeral, persistent" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose Off, Temporary, or Persistent sandbox mode." }, { status: 400 });
   }
 
-  await setSandboxMode(netID, mode);
-  return NextResponse.json({ mode });
+  try {
+    await setSandboxMode(netID, mode);
+    return NextResponse.json({ mode });
+  } catch {
+    return NextResponse.json({ error: "Sandbox mode could not be updated. Please try again." }, { status: 500 });
+  }
 }
 
 // Manual "reset sandbox" - clears the overlay diff without changing the mode.
@@ -40,8 +45,12 @@ export async function DELETE() {
   const { netID, error } = await requireSandboxUser();
   if (error) return error;
 
-  await resetSandbox(netID);
-  return NextResponse.json({ reset: true });
+  try {
+    await resetSandbox(netID);
+    return NextResponse.json({ reset: true });
+  } catch {
+    return NextResponse.json({ error: "Sandbox data could not be reset. Please try again." }, { status: 500 });
+  }
 }
 
 // navigator.sendBeacon only supports POST, so the sidebar uses this (instead
@@ -57,8 +66,10 @@ export async function POST() {
   const { netID, error } = await requireSandboxUser();
   if (error) return error;
 
-  if ((await getSandboxMode(netID)) === "ephemeral") {
-    await deactivateEphemeral(netID);
+  try {
+    if ((await getSandboxMode(netID)) === "ephemeral") await deactivateEphemeral(netID);
+    return new NextResponse(null, { status: 204 });
+  } catch {
+    return NextResponse.json({ error: "Sandbox cleanup could not be completed. Please try again." }, { status: 500 });
   }
-  return new NextResponse(null, { status: 204 });
 }

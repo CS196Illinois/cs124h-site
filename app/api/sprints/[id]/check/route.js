@@ -19,14 +19,14 @@ export async function resolveActorGroup(userRole, netID, bodyGroupNumber) {
   if (isPmViewRole(userRole)) {
     const { data: me } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
     if (me?.group_number != null) return { groupNumber: me.group_number };
-    if (userRole === "pm") return { error: "You have no group assigned" };
+    if (userRole === "pm") return { error: "You are not assigned to a group yet." };
   }
   if (MANAGE_ROLES.includes(userRole)) {
     const g = Number(bodyGroupNumber);
-    if (!Number.isFinite(g)) return { error: "group_number is required" };
+    if (!Number.isFinite(g)) return { error: "Please choose a group." };
     return { groupNumber: g };
   }
-  return { error: "Insufficient permissions", status: 403 };
+  return { error: "You do not have permission to do that.", status: 403 };
 }
 
 async function fetchWindows(sprintId, netID, userRole) {
@@ -62,11 +62,11 @@ export async function GET(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
   const { id } = await params;
   const { data: sprint } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
-  if (!sprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!sprint) return NextResponse.json({ error: "We could not find that sprint. It may have been removed or is not available yet." }, { status: 404 });
   if (!isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
 
   const hasCheck = Array.isArray(sprint.check_questions) && sprint.check_questions.length > 0;
@@ -130,5 +130,5 @@ export async function GET(request, { params }) {
     return NextResponse.json({ hasCheck, questions: hasCheck ? sprint.check_questions : null, maxScore, groups });
   }
 
-  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
 }

@@ -7,6 +7,9 @@ import { useSearchParams } from "next/navigation";
 function SignInInner() {
   const searchParams = useSearchParams();
   const error = searchParams?.get("error");
+  const signInMessage = error === "AccessDenied"
+    ? "Your sign-in was canceled or your account is not approved for this course."
+    : "We couldn't sign you in right now. Please try again.";
 
   useEffect(() => {
     if (error) return;
@@ -17,7 +20,7 @@ function SignInInner() {
   if (error) {
     return (
       <div>
-        <p>Sign-in failed: {error}</p>
+        <p>{signInMessage}</p>
         <button onClick={() => signIn("cilogon", { callbackUrl: "/user" })}>
           Try again
         </button>

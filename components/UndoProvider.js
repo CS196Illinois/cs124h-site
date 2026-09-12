@@ -43,7 +43,7 @@ export function UndoProvider({ children }) {
         // server-side permission check) means the delete didn't really
         // happen, so treat it as a failure and restore the UI.
         if (result && typeof result.ok === "boolean" && !result.ok) {
-          throw new Error(`Request failed (${result.status})`);
+          throw new Error("The change could not be saved. Your information was restored; please try again.");
         }
       } catch (err) {
         console.error("[undo] failed to commit action, restoring:", err);

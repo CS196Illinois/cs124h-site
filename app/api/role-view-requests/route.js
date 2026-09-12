@@ -21,11 +21,11 @@ export async function GET() {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   if (userRole !== "lead_web_dev" && userRole !== "web_dev") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   // Lazily clean up expired approved rows on every read
@@ -41,7 +41,7 @@ export async function GET() {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -51,15 +51,15 @@ export async function POST(request) {
   const netID = session?.user?.netID;
 
   if (userRole !== "web_dev") {
-    return NextResponse.json({ error: "Only Web Devs can request role view access" }, { status: 403 });
+    return NextResponse.json({ error: "Only Web Devs can request access to another role’s pages." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
 
   const { requested_role } = body;
   if (!REQUESTABLE_ROLES.includes(requested_role)) {
-    return NextResponse.json({ error: "Invalid role requested" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a role you are allowed to view." }, { status: 400 });
   }
 
   // Check for existing pending or non-expired approved request
@@ -93,6 +93,6 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

@@ -12,7 +12,7 @@ export async function GET() {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { data, error } = await supabaseServer
@@ -21,7 +21,7 @@ export async function GET() {
     .eq("net_id", netID)
     .order("checked_in_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data;
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {

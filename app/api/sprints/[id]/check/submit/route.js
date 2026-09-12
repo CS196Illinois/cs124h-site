@@ -23,10 +23,10 @@ export async function POST(request, { params }) {
   if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const questions = Array.isArray(sprint?.check_questions) ? sprint.check_questions : [];
   if (!questions.length) {
-    return NextResponse.json({ error: "This sprint has no understanding check" }, { status: 400 });
+    return NextResponse.json({ error: "This sprint does not have an understanding check yet." }, { status: 400 });
   }
   if (!answers || answers.length !== questions.length || answers.some((a) => !String(a ?? "").trim())) {
-    return NextResponse.json({ error: "Answer every question" }, { status: 400 });
+    return NextResponse.json({ error: "Please answer every question before submitting." }, { status: 400 });
   }
 
   const { data: me } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
@@ -37,7 +37,7 @@ export async function POST(request, { params }) {
     .eq("group_number", me?.group_number ?? -1)
     .maybeSingle();
   if (!window?.is_open) {
-    return NextResponse.json({ error: "This check isn't open right now" }, { status: 403 });
+    return NextResponse.json({ error: "This check is closed right now. Ask your PM to open it." }, { status: 403 });
   }
 
   const now = new Date().toISOString();
@@ -69,11 +69,11 @@ export async function POST(request, { params }) {
     }
     if (error.code === "23514") {
       return NextResponse.json({
-        error: "Your answers are valid, but the submission could not be saved because the action-item database rule rejected it. Please refresh and try again. If it still fails, contact a course lead and include code SPRINT_CHECK_SAVE.",
+        error: "We could not save your answers. Please refresh and try again. If the problem continues, contact your course staff and mention reference SPRINT_CHECK_SAVE.",
         code: "SPRINT_CHECK_SAVE",
       }, { status: 500 });
     }
-    return NextResponse.json({ error: "We couldn't save your understanding check right now. Please try again. If the problem continues, contact a course lead.", code: "SPRINT_CHECK_SAVE_UNKNOWN" }, { status: 500 });
+    return NextResponse.json({ error: "We couldn't save your understanding check right now. Please try again. If the problem continues, contact your course staff.", code: "SPRINT_CHECK_SAVE_UNKNOWN" }, { status: 500 });
   }
   return NextResponse.json(data, { status: 201 });
 }

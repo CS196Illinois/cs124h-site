@@ -8,7 +8,7 @@ export async function GET(request) {
   const userRole = session?.user?.role;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const manageable = new URL(request.url).searchParams.get("manageable") === "true";

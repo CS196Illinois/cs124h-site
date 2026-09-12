@@ -14,14 +14,14 @@ export async function PATCH(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!MANAGE_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
   const { id } = await params;
   const { data: existingSprint } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
-  if (!existingSprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!existingSprint) return NextResponse.json({ error: "We could not find that sprint. It may have been removed or is not available yet." }, { status: 404 });
   if (!isSprintVisibleToRole(existingSprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const body = await request.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
 
   // PMs can maintain the understanding-check content, but cannot change the
   // sprint schedule or goal from their group-management view.
@@ -63,13 +63,13 @@ export async function PATCH(request, { params }) {
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    return NextResponse.json({ error: "Please provide at least one field to change." }, { status: 400 });
   }
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
     const { data: realRow } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
     const current = await getEffectiveRow(netID, "sprints", id, realRow);
-    if (!current) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+    if (!current) return NextResponse.json({ error: "We could not find that sprint. It may have been removed or is not available yet." }, { status: 404 });
     const merged = { ...current, ...updates };
     await sandboxWrite(netID, "sprints", "update", id, merged);
     return NextResponse.json(merged);
@@ -81,7 +81,7 @@ export async function PATCH(request, { params }) {
     .eq("id", id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -90,11 +90,11 @@ export async function DELETE(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!MANAGE_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
   const { id } = await params;
   const { data: existingSprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
-  if (!existingSprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!existingSprint) return NextResponse.json({ error: "We could not find that sprint. It may have been removed or is not available yet." }, { status: 404 });
   if (!isSprintVisibleToRole(existingSprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -103,6 +103,6 @@ export async function DELETE(request, { params }) {
   }
 
   const { error } = await supabaseServer.from(table("sprints")).delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return new NextResponse(null, { status: 204 });
 }

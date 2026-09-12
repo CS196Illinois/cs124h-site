@@ -19,7 +19,7 @@ export async function GET() {
     .select("*");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
   if (!data || data.length === 0) return NextResponse.json([]);
 
@@ -28,7 +28,7 @@ export async function GET() {
   const totalKey = sampleKeys.find((k) => k.toLowerCase() === "total");
 
   if (!groupKey || !totalKey) {
-    return NextResponse.json({ error: "Could not resolve group/total columns" }, { status: 500 });
+    return NextResponse.json({ error: "The attendance sheet is missing its group or total columns. Please check the sheet headers." }, { status: 500 });
   }
 
   // Each unit of "total" is worth 10 points - matches production's formula.

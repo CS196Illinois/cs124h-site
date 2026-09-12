@@ -25,7 +25,7 @@ export default function HeadPMGradebook() {
       setStudents(nextStudents);
       setItems(nextItems);
     } catch (err) {
-      setError(err.message || "Unable to load your gradebook. Please try again.");
+      setError(err.message?.startsWith("Unable") ? err.message : "We couldn't load your gradebook. Please try again.");
     } finally {
       setLoading(false);
     }

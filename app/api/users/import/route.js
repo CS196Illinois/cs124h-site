@@ -9,16 +9,16 @@ import { syncSheetAccessForRole, SHEET_ACCESS_ROLES } from "../../../../lib/shee
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   if (!["course_lead", "lead_web_dev", "web_dev"].includes(session?.user?.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
-  if (!url) return NextResponse.json({ error: "url is required" }, { status: 400 });
+  if (!url) return NextResponse.json({ error: "Please provide a Google Sheets URL." }, { status: 400 });
 
   const csvUrl = toSheetsCsvUrl(url);
   if (!csvUrl) {
-    return NextResponse.json({ error: "Invalid Google Sheets URL" }, { status: 400 });
+    return NextResponse.json({ error: "That is not a valid Google Sheets link." }, { status: 400 });
   }
 
   try {
@@ -32,7 +32,7 @@ export async function GET(request) {
     const csv = await res.text();
     return NextResponse.json({ csv });
   } catch {
-    return NextResponse.json({ error: "Failed to fetch sheet" }, { status: 500 });
+    return NextResponse.json({ error: "The Google Sheet could not be loaded. Check the link and your access, then try again." }, { status: 500 });
   }
 }
 
@@ -49,7 +49,7 @@ function toSheetsCsvUrl(url) {
 export async function POST(request) {
   const session = await getServerSession(authOptions);
   if (!["course_lead", "lead_web_dev", "web_dev"].includes(session?.user?.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const body = await request.json();
@@ -59,7 +59,7 @@ export async function POST(request) {
   // roleScope: optional role string - scopes replace/delete to only that role
 
   if (!Array.isArray(rows) || rows.length === 0) {
-    return NextResponse.json({ error: "No rows provided" }, { status: 400 });
+    return NextResponse.json({ error: "No rows were found to import. Please check your file or sheet." }, { status: 400 });
   }
 
   const VALID_ROLES = ["LEAD", "HEAD", "PM", "WEB", "STUDENT"];
@@ -69,7 +69,7 @@ export async function POST(request) {
   for (const row of rows) {
     const net_id = row.net_id?.trim().toLowerCase();
     const role = row.role?.toUpperCase().trim();
-    if (!net_id) { errors.push({ row, reason: "Missing net_id" }); continue; }
+    if (!net_id) { errors.push({ row, reason: "NetID is missing." }); continue; }
     if (!VALID_ROLES.includes(role)) { errors.push({ row, reason: `Invalid role: ${row.role}` }); continue; }
     validRows.push({
       net_id,
@@ -80,14 +80,14 @@ export async function POST(request) {
   }
 
   if (validRows.length === 0) {
-    return NextResponse.json({ error: "No valid rows to import", errors }, { status: 400 });
+    return NextResponse.json({ error: "None of the rows could be imported. Please check the highlighted row errors.", errors }, { status: 400 });
   }
 
   // Fetch current roster (scoped to roleScope if provided, else all)
   let existingQuery = supabaseServer.from(table("users")).select("net_id, role, sub, name");
   if (roleScope) existingQuery = existingQuery.eq("role", roleScope);
   const { data: existing, error: fetchErr } = await existingQuery;
-  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  if (fetchErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   const existingMap = new Map(existing.map((u) => [u.net_id, u]));
   const importSet = new Set(validRows.map((r) => r.net_id));
@@ -112,7 +112,7 @@ export async function POST(request) {
     const { error: upsertErr } = await supabaseServer
       .from(table("users"))
       .upsert(toUpsert, { onConflict: "net_id" });
-    if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+    if (upsertErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
     for (const r of validRows) {
       if (existingMap.has(r.net_id)) updated++;
@@ -130,7 +130,7 @@ export async function POST(request) {
         .from(table("users"))
         .delete()
         .in("net_id", toDelete);
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+      if (delErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
       deleted = toDelete.length;
       for (const net_id of toDelete) {
         if (SHEET_ACCESS_ROLES.has(existingMap.get(net_id)?.role)) {
@@ -158,7 +158,7 @@ export async function POST(request) {
 
     if (toInsert.length > 0) {
       const { error: insErr } = await supabaseServer.from(table("users")).insert(toInsert);
-      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+      if (insErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
       inserted = toInsert.length;
       for (const row of toInsert) {
         if (SHEET_ACCESS_ROLES.has(row.role)) roleSyncTargets.push({ net_id: row.net_id, newRole: row.role });
@@ -171,7 +171,7 @@ export async function POST(request) {
         .update({ role: row.role, name: row.name, group_number: row.group_number })
         .eq("net_id", row.net_id);
       // note: row.name is already the preserved DB name (set above when building toUpdate)
-      if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+      if (upErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
       updated++;
       const oldRole = existingMap.get(row.net_id)?.role;
       if (SHEET_ACCESS_ROLES.has(oldRole) || SHEET_ACCESS_ROLES.has(row.role)) {

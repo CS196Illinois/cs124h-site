@@ -15,13 +15,13 @@ export async function GET() {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
   const { data, error } = await supabaseServer
     .from(table("sprints"))
     .select("*")
     .order("number", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data ?? [];
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -44,13 +44,13 @@ export async function POST(request) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!MANAGE_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
   const body = await request.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
   const { number, goal, start_date, end_date, check_questions, check_max_score } = body;
   if (number == null || !goal?.trim()) {
-    return NextResponse.json({ error: "number and goal are required" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter both a sprint number and a goal." }, { status: 400 });
   }
   const sprintNumber = Number(number);
   if (!Number.isInteger(sprintNumber) || sprintNumber < 0) {
@@ -81,6 +81,6 @@ export async function POST(request) {
     .insert(row)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

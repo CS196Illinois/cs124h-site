@@ -13,7 +13,7 @@ export async function GET(request) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -26,7 +26,7 @@ export async function GET(request) {
   if (groupFilter) query = query.eq("group_number", Number(groupFilter));
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data;
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -47,19 +47,19 @@ export async function POST(request) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const allowed = MANAGEABLE_ROLES[userRole];
   if (!allowed) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   const body = await request.json();
   const { net_id, role, name, group_number } = body;
 
   if (!net_id || !role) {
-    return NextResponse.json({ error: "net_id and role are required" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter both a NetID and a role." }, { status: 400 });
   }
 
   if (!allowed.includes(role)) {
@@ -92,7 +92,7 @@ export async function POST(request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: `A user with NetID "${cleanNetId}" already exists.` }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
 
   if (SHEET_ACCESS_ROLES.has(role)) {
@@ -109,7 +109,7 @@ export async function DELETE(request) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!BULK_DELETE_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -117,7 +117,7 @@ export async function DELETE(request) {
 
   const VALID_ROLES = ["LEAD", "LEAD_WEB", "HEAD", "PM", "WEB", "STUDENT"];
   if (!role || !VALID_ROLES.includes(role)) {
-    return NextResponse.json({ error: "A valid role query param is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a valid role." }, { status: 400 });
   }
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -133,7 +133,7 @@ export async function DELETE(request) {
     .eq("role", role)
     .select("net_id");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   // Hygiene, not a security requirement (a deleted user can never reach a
   // sandboxed route again either way) - avoid leaving orphaned overlay rows

@@ -18,12 +18,12 @@ export async function GET(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!(await getManagedEvent(id, netID, userRole))) {
-    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
   const { data, error } = await supabaseServer
     .from(table("eventCheckins"))
@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
     .eq("event_id", id)
     .order("checked_in_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data;
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -48,14 +48,14 @@ export async function POST(request, { params }) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { id } = await params;
   const { code } = await request.json();
 
   if (!code?.trim()) {
-    return NextResponse.json({ error: "Code is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter the check-in code." }, { status: 400 });
   }
 
   const sandboxed = isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off";
@@ -73,7 +73,7 @@ export async function POST(request, { params }) {
   const event = sandboxed ? await getEffectiveRow(netID, "events", id, realEvent) : realEvent;
 
   if (!event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    return NextResponse.json({ error: "We could not find that event. It may have been removed." }, { status: 404 });
   }
   if (!event.check_in_open) {
     return NextResponse.json({ error: "Check-in is not open for this event." }, { status: 400 });
@@ -108,7 +108,7 @@ export async function POST(request, { params }) {
       if (e.code === "23505") {
         return NextResponse.json({ error: "You've already checked in to this event." }, { status: 409 });
       }
-      return NextResponse.json({ error: e.message }, { status: 500 });
+      return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
     }
     return NextResponse.json({ success: true, event_title: event.title }, { status: 201 });
   }
@@ -125,7 +125,7 @@ export async function POST(request, { params }) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
 
   // Fire-and-forget: after() keeps this running past the response instead of

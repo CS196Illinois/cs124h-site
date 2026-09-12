@@ -15,12 +15,12 @@ export async function POST(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!STAFF_ROLES.includes(userRole)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!(await getManagedEvent(id, netID, userRole))) {
-    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
 
   // A sandboxed event only exists in this user's overlay - there's no real
@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
   try {
     await syncEventAttendance(id);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
   return NextResponse.json({ success: true });
 }

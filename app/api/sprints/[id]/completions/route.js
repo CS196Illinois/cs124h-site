@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
   const { id } = await params;
   const { data: sprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
     .from(table("sprintCompletions"))
     .select("*")
     .eq("sprint_id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data ?? [];
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -36,7 +36,7 @@ export async function POST(request, { params }) {
   const userNetId = session?.user?.netID;
 
   if (!["pm", "head_pm", "course_lead", "lead_web_dev", "web_dev"].includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
   if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const body = await request.json().catch(() => null);
   if (!body?.student_net_id) {
-    return NextResponse.json({ error: "student_net_id is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a student." }, { status: 400 });
   }
 
   if (userRole === "pm") {
@@ -92,7 +92,7 @@ export async function POST(request, { params }) {
     )
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -102,14 +102,14 @@ export async function DELETE(request, { params }) {
   const userNetId = session?.user?.netID;
 
   if (!["pm", "head_pm", "course_lead", "lead_web_dev", "web_dev"].includes(userRole)) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
   }
 
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const studentNetId = searchParams.get("student_net_id");
   if (!studentNetId) {
-    return NextResponse.json({ error: "student_net_id query param required" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a student to remove." }, { status: 400 });
   }
 
   if (userRole === "pm") {
@@ -146,6 +146,6 @@ export async function DELETE(request, { params }) {
     .delete()
     .eq("sprint_id", id)
     .eq("student_net_id", studentNetId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return new NextResponse(null, { status: 204 });
 }

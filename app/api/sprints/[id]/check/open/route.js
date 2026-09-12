@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
   const userRole = session?.user?.role;
   const netID = session?.user?.netID;
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
   const { id } = await params;
   const { data: sprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
@@ -50,6 +50,6 @@ export async function POST(request, { params }) {
     )
     .select()
     .single();
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data);
 }

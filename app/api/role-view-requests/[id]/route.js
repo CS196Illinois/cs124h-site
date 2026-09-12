@@ -12,16 +12,16 @@ export async function PATCH(request, { params }) {
   const netID = session?.user?.netID;
 
   if (userRole !== "lead_web_dev") {
-    return NextResponse.json({ error: "Only Lead Web Devs can review role view requests" }, { status: 403 });
+    return NextResponse.json({ error: "Only Lead Web Devs can review access requests." }, { status: 403 });
   }
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
 
   const { status, duration_days } = body;
   if (!["approved", "denied"].includes(status)) {
-    return NextResponse.json({ error: "status must be 'approved' or 'denied'" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose either Approve or Deny." }, { status: 400 });
   }
 
   let expires_at = null;
@@ -33,7 +33,7 @@ export async function PATCH(request, { params }) {
     if (days !== null) {
       const d = Number(days);
       if (!Number.isFinite(d) || d <= 0) {
-        return NextResponse.json({ error: "duration_days must be a positive number or null (permanent)" }, { status: 400 });
+        return NextResponse.json({ error: "Access duration must be a positive number, or left blank for permanent access." }, { status: 400 });
       }
       expires_at = new Date(Date.now() + d * 24 * 60 * 60 * 1000).toISOString();
     }
@@ -58,9 +58,9 @@ export async function PATCH(request, { params }) {
   // doesn't exist OR isn't pending anymore - both are "not found" here, not
   // a server error.
   if (error && error.code !== "PGRST116") {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   }
-  if (!data) return NextResponse.json({ error: "Request not found or already reviewed" }, { status: 404 });
+  if (!data) return NextResponse.json({ error: "That request could not be found or has already been reviewed." }, { status: 404 });
   return NextResponse.json(data);
 }
 
@@ -69,7 +69,7 @@ export async function DELETE(request, { params }) {
   const userRole = session?.user?.role;
 
   if (userRole !== "lead_web_dev") {
-    return NextResponse.json({ error: "Only Lead Web Devs can revoke role view access" }, { status: 403 });
+    return NextResponse.json({ error: "Only Lead Web Devs can remove role-view access." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -80,6 +80,6 @@ export async function DELETE(request, { params }) {
     .eq("id", id)
     .eq("status", "approved");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json({ success: true });
 }

@@ -13,7 +13,7 @@ export async function GET(request) {
   const netID = session?.user?.netID;
 
   if (!userRole || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -25,7 +25,7 @@ export async function GET(request) {
     let roster = supabaseServer.from(table("users")).select("net_id");
     if (userRole === "pm") {
       const { data: me, error } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
       if (me?.group_number == null) visibleRecipients = [netID];
       else roster = roster.eq("role", "STUDENT").eq("group_number", me.group_number);
     } else {
@@ -33,7 +33,7 @@ export async function GET(request) {
     }
     if (!visibleRecipients) {
       const { data, error } = await roster;
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
       visibleRecipients = [...new Set([netID, ...data.map((row) => row.net_id)])];
     }
   }
@@ -54,7 +54,7 @@ export async function GET(request) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data;
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -73,19 +73,19 @@ export async function POST(request) {
   const assignerNetID = session?.user?.netID;
 
   if (!userRole || userRole === "student" || userRole === "error") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Please check the information you entered and try again." }, { status: 400 });
   const { title, description, due_date, target_type, target_net_ids, target_net_id, target_group, is_gradable, max_score } = body;
 
   if (typeof title !== "string" || !title.trim()) {
-    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter a title." }, { status: 400 });
   }
 
   if (typeof target_type !== "string" || (description != null && typeof description !== "string") || (Array.isArray(target_net_ids) && target_net_ids.some((id) => typeof id !== "string")) || (target_net_id != null && typeof target_net_id !== "string")) {
-    return NextResponse.json({ error: "Invalid assignment target or description" }, { status: 400 });
+    return NextResponse.json({ error: "Please choose a valid recipient and enter a description." }, { status: 400 });
   }
 
   let gradable = false;
@@ -124,7 +124,7 @@ export async function POST(request) {
       .from(table("users"))
       .select("net_id, role, group_number")
       .in("net_id", cleanIds);
-    if (targetErr) return NextResponse.json({ error: targetErr.message }, { status: 500 });
+    if (targetErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
     const targetUsers = sandboxed
       ? await mergeSandboxRows(assignerNetID, "users", realTargetUsers, (row) => cleanIds.includes(row.net_id))
@@ -146,23 +146,23 @@ export async function POST(request) {
 
     // Enforce hierarchy
     if (userRole === "head_pm" && !["PM", "STUDENT"].includes(role)) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
     }
     if (userRole === "pm" && role !== "STUDENT") {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "You do not have permission to do that." }, { status: 403 });
     }
 
     let roleQuery = supabaseServer.from(table("users")).select("net_id, role, group_number").eq("role", role);
     if (userRole === "pm") roleQuery = roleQuery.eq("group_number", requesterGroup);
     const { data: realRoleUsers, error: roleErr } = await roleQuery;
-    if (roleErr) return NextResponse.json({ error: roleErr.message }, { status: 500 });
+    if (roleErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
     const roleUsers = sandboxed
       ? await mergeSandboxRows(assignerNetID, "users", realRoleUsers, (row) => row.role === role && (userRole !== "pm" || row.group_number === requesterGroup))
       : realRoleUsers;
     targetNetIds = (roleUsers || []).map((u) => u.net_id);
   } else if (target_type === "group") {
-    if (!target_group) return NextResponse.json({ error: "target_group required" }, { status: 400 });
+    if (!target_group) return NextResponse.json({ error: "Please choose a group." }, { status: 400 });
     if (userRole === "pm" && (requesterGroup == null || Number(target_group) !== requesterGroup)) {
       return NextResponse.json({ error: "You can only assign to your own group" }, { status: 403 });
     }
@@ -172,7 +172,7 @@ export async function POST(request) {
       .select("net_id, role, group_number")
       .eq("group_number", Number(target_group))
       .eq("role", "STUDENT");
-    if (groupErr) return NextResponse.json({ error: groupErr.message }, { status: 500 });
+    if (groupErr) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
     const groupUsers = sandboxed
       ? await mergeSandboxRows(assignerNetID, "users", realGroupUsers, (row) => row.group_number === Number(target_group) && row.role === "STUDENT")
@@ -181,7 +181,7 @@ export async function POST(request) {
   }
 
   if (targetNetIds.length === 0) {
-    return NextResponse.json({ error: "No matching users found for target" }, { status: 400 });
+    return NextResponse.json({ error: "No people match that assignment. Please choose a different person, role, or group." }, { status: 400 });
   }
 
   // Bulk assignments (more than one recipient) share a batch_id so the assigner
@@ -218,6 +218,6 @@ export async function POST(request) {
   }
 
   const { data, error } = await supabaseServer.from(table("actionItems")).insert(records).select();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json({ success: true, count: targetNetIds.length, batch_id: batchId, data }, { status: 201 });
 }

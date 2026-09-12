@@ -57,7 +57,7 @@ const TOUR_STEPS = {
   student: [
     { title: "Welcome to CS 124H", copy: "Follow the highlighted pages to find your work, sprint checks, events, and attendance.", href: "/user/student", target: "nav-dashboard" },
     { title: "Start with Action Items", copy: "Read the description and due date, then mark work complete when it is ready for review.", href: "/user/student/action_items", target: "nav-action-items" },
-    { title: "Complete sprint checks", copy: "Your questions appear when your PM opens your group’s check. Answer every question and submit once.", href: "/user/student/sprints", target: "nav-sprints" },
+    { title: "Complete sprint checks", copy: "Your questions appear when your PM opens your group’s sprint check. Answer every question and submit once.", href: "/user/student/sprints", target: "nav-sprints" },
     { title: "Join events", copy: "Use Attendance to enter the code or scan the QR code while check-in is open.", href: "/user/student/attendance", target: "nav-attendance" },
     { title: "Get help", copy: "Read the exact alert, retry after correcting the requested field, and contact staff if it continues.", href: "/user/student", target: "nav-dashboard" },
   ],
@@ -130,7 +130,6 @@ export default function OnboardingTour() {
       <section className={styles.card} role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
         <div className={styles.progress}><span>Getting started · {ROLE_LABELS[role]}</span><span>{step + 1}/{steps.length}</span></div>
         <div className={styles.progressBar}><span style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
-        <div className={styles.illustration} aria-hidden="true">{last ? "✓" : "✦"}</div>
         <h2 id="onboarding-title">{title}</h2>
         <p>{copy}</p>
         <div className={styles.actions}>

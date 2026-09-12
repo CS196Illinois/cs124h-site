@@ -24,7 +24,7 @@ export function deriveCode(eventId, windowOffset = 0) {
 export async function GET(request, { params }) {
   const session = await getServerSession(authOptions);
   if (!STAFF_ROLES.includes(session?.user?.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Please sign in to continue." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -32,10 +32,10 @@ export async function GET(request, { params }) {
 
   const event = await getManagedEvent(id, netID, session?.user?.role);
   if (!event) {
-    return NextResponse.json({ error: "Not found, or you don't manage this event" }, { status: 403 });
+    return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
   if (!event.check_in_open) {
-    return NextResponse.json({ error: "Check-in is not open" }, { status: 400 });
+    return NextResponse.json({ error: "Check-in is not open for this event." }, { status: 400 });
   }
 
   const code = deriveCode(id);
