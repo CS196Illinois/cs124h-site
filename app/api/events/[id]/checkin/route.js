@@ -8,7 +8,7 @@ import { deriveCode } from "../code/route";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, mergeSandboxRows, sandboxWrite } from "../../../../../lib/sandbox";
 import { getManagedEvent } from "../../../../../lib/events";
 import { syncEventAttendance } from "../../../../../lib/eventAttendanceSync";
-import { audienceMatches } from "../../../../../lib/events";
+import { audienceMatches, eventHasEnded } from "../../../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -63,17 +63,21 @@ export async function POST(request, { params }) {
   // Verify event exists and check-in is currently open
   let { data: realEvent, error: eventError } = await supabaseServer
     .from(table("events"))
-    .select("id, title, check_in_open, audience_type, audience_values")
+    .select("id, title, end_time, check_in_open, audience_type, audience_values")
     .eq("id", id)
     .maybeSingle();
   if (eventError && (eventError.code === "PGRST204" || eventError.code === "42703")) {
-    ({ data: realEvent } = await supabaseServer.from(table("events")).select("id, title, check_in_open").eq("id", id).maybeSingle());
+    ({ data: realEvent } = await supabaseServer.from(table("events")).select("id, title, end_time, check_in_open").eq("id", id).maybeSingle());
     if (realEvent) realEvent = { ...realEvent, audience_type: "all", audience_values: [] };
   }
   const event = sandboxed ? await getEffectiveRow(netID, "events", id, realEvent) : realEvent;
 
   if (!event) {
     return NextResponse.json({ error: "We could not find that event. It may have been removed." }, { status: 404 });
+  }
+  if (eventHasEnded(event)) {
+    if (!sandboxed) await supabaseServer.from(table("events")).update({ check_in_open: false }).eq("id", id).eq("check_in_open", true);
+    return NextResponse.json({ error: "This event has ended, so check-in is closed." }, { status: 400 });
   }
   if (!event.check_in_open) {
     return NextResponse.json({ error: "Check-in is not open for this event." }, { status: 400 });

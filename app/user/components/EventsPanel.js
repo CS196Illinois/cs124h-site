@@ -79,6 +79,13 @@ export default function EventsPanel() {
     if (res.ok) setEvents(await res.json());
   }, []);
 
+  // Refresh often enough to reflect automatic end-time closure while a staff
+  // member is watching the event list.
+  useEffect(() => {
+    const timer = setInterval(refreshEvents, 30000);
+    return () => clearInterval(timer);
+  }, [refreshEvents]);
+
   // Roster, for the add-attendee autocomplete - fetched once since this
   // panel is staff-only and GET /api/users is available to any signed-in
   // role.
@@ -589,7 +596,7 @@ export default function EventsPanel() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label htmlFor="event-audience">Who can see and check in?</label>
+              <label htmlFor="event-audience">Who can see and check in? <span className={styles.required}>*</span></label>
               <select id="event-audience" value={form.audience_type} onChange={e => setForm({ ...form, audience_type: e.target.value, audience_values: [] })}>
                 <option value="all">Everyone</option>
                 <option value="people">Specific people</option>
@@ -599,7 +606,7 @@ export default function EventsPanel() {
             </div>
             {form.audience_type !== "all" && (
               <fieldset className={styles.audienceChoices}>
-                <legend>{form.audience_type === "roles" ? "Roles" : form.audience_type === "groups" ? "Groups" : "People"}</legend>
+                <legend>{form.audience_type === "roles" ? "Roles" : form.audience_type === "groups" ? "Groups" : "People"} <span className={styles.required}>*</span></legend>
                 {(form.audience_type === "roles"
                   ? [["LEAD", "Course Leads"], ["LEAD_WEB", "Lead Web Devs"], ["HEAD", "Head PMs"], ["PM", "PMs"], ["WEB", "Web Devs"], ["STUDENT", "Students"]]
                   : form.audience_type === "groups"

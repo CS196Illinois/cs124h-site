@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "../../../auth/[...nextauth]/route";
-import { getManagedEvent } from "../../../../../lib/events";
+import { getManagedEvent, eventHasEnded } from "../../../../../lib/events";
+import { supabaseServer } from "../../../../../lib/supabaseServer";
+import { table } from "../../../../../lib/tables";
 import crypto from "crypto";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
@@ -30,12 +32,16 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const netID = session?.user?.netID;
 
-  const event = await getManagedEvent(id, netID, session?.user?.role);
+  const event = await getManagedEvent(id, netID, session?.user?.role, "id, title, created_by, end_time, check_in_open");
   if (!event) {
     return NextResponse.json({ error: "That event could not be found, or you do not have permission to manage it." }, { status: 403 });
   }
   if (!event.check_in_open) {
     return NextResponse.json({ error: "Check-in is not open for this event." }, { status: 400 });
+  }
+  if (eventHasEnded(event)) {
+    await supabaseServer.from(table("events")).update({ check_in_open: false }).eq("id", id).eq("check_in_open", true);
+    return NextResponse.json({ error: "This event has ended, so check-in is closed." }, { status: 400 });
   }
 
   const code = deriveCode(id);

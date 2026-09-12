@@ -5,7 +5,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../lib/sandbox";
-import { canAdminEvents, EVENT_AUDIENCE_TYPES, audienceMatches } from "../../../lib/events";
+import { canAdminEvents, EVENT_AUDIENCE_TYPES, audienceMatches, eventHasEnded } from "../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -36,6 +36,11 @@ export async function GET(request) {
   if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
 
   let rows = data;
+  const expiredIds = rows.filter((event) => event.check_in_open && eventHasEnded(event)).map((event) => event.id);
+  if (expiredIds.length) {
+    await supabaseServer.from(table("events")).update({ check_in_open: false }).in("id", expiredIds);
+    rows = rows.map((event) => expiredIds.includes(event.id) ? { ...event, check_in_open: false } : event);
+  }
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
     rows = await mergeSandboxRows(netID, "events", rows, () => true);
     rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -143,6 +148,14 @@ export async function POST(request) {
     .insert(row)
     .select()
     .single();
+
+  if (error && audience_type === "all" && (error.code === "PGRST204" || error.code === "42703")) {
+    ({ data, error } = await supabaseServer
+      .from(table("events"))
+      .insert({ ...row, audience_type: undefined, audience_values: undefined })
+      .select()
+      .single());
+  }
 
   if (error) {
     console.error("Event creation failed", { code: error.code, message: error.message });

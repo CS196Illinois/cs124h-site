@@ -4,7 +4,7 @@ import { authOptions } from "../../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../../lib/supabaseServer";
 import { table } from "../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, sandboxWrite } from "../../../../lib/sandbox";
-import { canAdminEvents } from "../../../../lib/events";
+import { canAdminEvents, eventHasEnded } from "../../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -22,6 +22,10 @@ export async function PATCH(request, { params }) {
   const updates = {};
 
   if (body.check_in_open !== undefined) {
+    if (body.check_in_open) {
+      const { data: event } = await supabaseServer.from(table("events")).select("end_time").eq("id", id).maybeSingle();
+      if (eventHasEnded(event)) return NextResponse.json({ error: "This event has already ended, so check-in cannot be opened." }, { status: 400 });
+    }
     updates.check_in_open = body.check_in_open;
     if (body.check_in_open) {
       updates.check_in_opened_at = new Date().toISOString();
