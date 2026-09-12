@@ -1,7 +1,7 @@
 -- Production schema for the tables introduced by the cs124h-dev-site port.
 --
 -- This is the real-table counterpart to test-schema.sql. It never existed
--- before - the production tables (user-testing, action_items, events, etc.)
+-- before - the production tables (users, action_items, events, etc.)
 -- were created by hand at some point during the port, and drifted out of
 -- sync with what the app code actually needs. Confirmed drift as of writing:
 -- action_items was missing is_gradable, max_score, grade, grade_note,
@@ -19,18 +19,27 @@
 -- Run this once in the Supabase SQL editor against the production project.
 
 -- ── People / roster ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS "user-testing" (
+DO $$
+BEGIN
+  IF to_regclass('public."user-testing"') IS NOT NULL THEN
+    IF to_regclass('public.users') IS NOT NULL THEN
+      RAISE EXCEPTION 'Both "user-testing" and users exist; reconcile them before retrying';
+    END IF;
+    ALTER TABLE "user-testing" RENAME TO users;
+  END IF;
+END $$;
+CREATE TABLE IF NOT EXISTS users (
   net_id            text PRIMARY KEY
 );
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS group_number    integer;
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS role            text NOT NULL DEFAULT 'STUDENT';
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS sub             text UNIQUE;
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS name            text;
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS discord_user_id text;
-ALTER TABLE "user-testing" ADD COLUMN IF NOT EXISTS sandbox_mode    text NOT NULL DEFAULT 'off';
-ALTER TABLE "user-testing" ALTER COLUMN role DROP DEFAULT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS group_number    integer;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role            text NOT NULL DEFAULT 'STUDENT';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sub             text UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name            text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_user_id text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sandbox_mode    text NOT NULL DEFAULT 'off';
+ALTER TABLE users ALTER COLUMN role DROP DEFAULT;
 DO $$ BEGIN
-  ALTER TABLE "user-testing" ADD CONSTRAINT user_testing_sandbox_mode_check CHECK (sandbox_mode IN ('off', 'ephemeral', 'persistent'));
+  ALTER TABLE users ADD CONSTRAINT users_sandbox_mode_check CHECK (sandbox_mode IN ('off', 'ephemeral', 'persistent'));
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
@@ -282,7 +291,7 @@ CREATE TABLE IF NOT EXISTS projects (
 -- (lib/supabaseServer.js) - nothing reads these tables with the anon key -
 -- so RLS doesn't gate anything here either way, but disabling it explicitly
 -- avoids surprises if a client-side read is ever added later.
-ALTER TABLE "user-testing"      DISABLE ROW LEVEL SECURITY;
+ALTER TABLE users      DISABLE ROW LEVEL SECURITY;
 ALTER TABLE action_items        DISABLE ROW LEVEL SECURITY;
 ALTER TABLE role_view_requests  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE events              DISABLE ROW LEVEL SECURITY;

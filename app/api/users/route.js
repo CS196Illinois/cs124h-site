@@ -72,7 +72,7 @@ export async function POST(request) {
     const { data: realRow } = await supabaseServer.from(table("users")).select("*").eq("net_id", cleanNetId).maybeSingle();
     const existing = await getEffectiveRow(netID, "users", cleanNetId, realRow);
     if (existing) {
-      return NextResponse.json({ error: `duplicate key value violates unique constraint "user-testing_pkey"` }, { status: 500 });
+      return NextResponse.json({ error: `A user with NetID "${cleanNetId}" already exists.` }, { status: 409 });
     }
     const fullRow = {
       net_id: cleanNetId, role, name: name?.trim() || null, group_number: group_number || null,
@@ -88,7 +88,12 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: `A user with NetID "${cleanNetId}" already exists.` }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   if (SHEET_ACCESS_ROLES.has(role)) {
     after(() => syncSheetAccessForRole(cleanNetId, role).catch((e) => console.error(`sheet access sync failed for ${cleanNetId}:`, e.message)));

@@ -45,7 +45,7 @@ for (let index = 0; index < records.length; index += 1) {
 }
 for (const record of records) {
   const role = { "Course Lead": "LEAD", "Lead Web Developer": "LEAD_WEB", "Web Developer": "WEB", "Project Manager": "PM" }[record.role];
-  const { error } = await client.from("user-testing").update({ name: record.name, role }).eq("net_id", record.email.split("@")[0]);
+  const { error } = await client.from("users").update({ name: record.name, role }).eq("net_id", record.email.split("@")[0]);
   if (error) throw new Error(`Updating roster ${record.email}: ${error.message}`);
 }
 console.log(`Imported ${records.length} Fall 2026 staff records and updated matching roster names.`);

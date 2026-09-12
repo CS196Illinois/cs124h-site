@@ -13,7 +13,16 @@
 -- and anon key (the few client-side reads) need unrestricted access here.
 
 -- ── People / roster ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS "test_user-testing" (
+DO $$
+BEGIN
+  IF to_regclass('public."test_user-testing"') IS NOT NULL THEN
+    IF to_regclass('public.test_users') IS NOT NULL THEN
+      RAISE EXCEPTION 'Both "test_user-testing" and test_users exist; reconcile them before retrying';
+    END IF;
+    ALTER TABLE "test_user-testing" RENAME TO test_users;
+  END IF;
+END $$;
+CREATE TABLE IF NOT EXISTS test_users (
   net_id            text PRIMARY KEY,
   group_number      integer,
   role              text NOT NULL,
@@ -25,9 +34,9 @@ CREATE TABLE IF NOT EXISTS "test_user-testing" (
 -- exists in most environments by the time this line is added, and
 -- CREATE TABLE IF NOT EXISTS is a no-op against an existing table - an
 -- inline column definition would never actually apply. Self-heals instead.
-ALTER TABLE "test_user-testing" ADD COLUMN IF NOT EXISTS sandbox_mode text NOT NULL DEFAULT 'off';
+ALTER TABLE test_users ADD COLUMN IF NOT EXISTS sandbox_mode text NOT NULL DEFAULT 'off';
 DO $$ BEGIN
-  ALTER TABLE "test_user-testing" ADD CONSTRAINT test_user_testing_sandbox_mode_check CHECK (sandbox_mode IN ('off', 'ephemeral', 'persistent'));
+  ALTER TABLE test_users ADD CONSTRAINT test_users_sandbox_mode_check CHECK (sandbox_mode IN ('off', 'ephemeral', 'persistent'));
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
@@ -226,7 +235,7 @@ CREATE TABLE IF NOT EXISTS test_event_attendance_sp26 (
 -- from client components (leaderboard, course_staff, hall_of_fame), so leaving
 -- RLS on with no policies would make those pages always render empty during
 -- tests. Disable it explicitly rather than relying on assumed defaults.
-ALTER TABLE "test_user-testing"      DISABLE ROW LEVEL SECURITY;
+ALTER TABLE test_users      DISABLE ROW LEVEL SECURITY;
 ALTER TABLE test_action_items        DISABLE ROW LEVEL SECURITY;
 ALTER TABLE test_role_view_requests  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE test_events              DISABLE ROW LEVEL SECURITY;
