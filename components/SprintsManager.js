@@ -358,7 +358,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
             <h2>{editingSprint ? (canManage ? "Edit Sprint" : "Edit Understanding Check") : "New Sprint"}</h2>
             {modalError && <div className={styles.alertError}>{modalError}</div>}
             {canManage && <div className={styles.formGroup}>
-              <label>Sprint Number</label>
+              <label>Sprint Number <span className={styles.required}>*</span></label>
               <input
                 type="number"
                 min="0"
@@ -367,7 +367,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
               />
             </div>}
             {canManage && <div className={styles.formGroup}>
-              <label>Goal</label>
+              <label>Goal <span className={styles.required}>*</span></label>
               <textarea
                 value={form.goal}
                 onChange={(e) => setForm((f) => ({ ...f, goal: e.target.value }))}

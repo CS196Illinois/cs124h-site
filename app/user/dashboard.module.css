@@ -512,6 +512,7 @@ select.roleSelect {
 .required {
   color: #f87171;
   margin-left: 0.15rem;
+  font-weight: 700;
 }
 
 .formGroup input:not([type="checkbox"]):not([type="radio"]),
