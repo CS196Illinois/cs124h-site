@@ -175,6 +175,8 @@
   text-align: center;
   width: 100%;
   max-width: 100%;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   box-sizing: border-box;
   margin: auto;
 }
@@ -204,7 +206,7 @@
      viewports instead of forcing a fixed minimum width; the wrap/word-break
      rules below are the fallback if it's still too wide (e.g. with browser
      text-size zoom, which scales the rem floor but not vw). */
-  font-size: clamp(2.25rem, 16vw, 13rem);
+  font-size: min(16vw, 20dvh, 13rem);
   font-weight: 700;
   color: #f9f9f9;
   letter-spacing: 0.12em;
@@ -254,8 +256,18 @@
 
 .qrImage {
   display: block;
-  width: clamp(120px, 16vw, 180px);
-  height: clamp(120px, 16vw, 180px);
+  width: min(16vw, 16vh, 180px);
+  height: min(16vw, 16vh, 180px);
+}
+
+@media (max-width: 520px), (max-height: 620px) {
+  .enlargeOverlay { padding: 1rem 0.75rem; }
+  .enlargeContent { padding: 1rem 0.5rem; }
+  .enlargeEventTitle { margin-bottom: 1rem; }
+  .enlargeLabel { margin-bottom: 0.75rem; }
+  .enlargeDigits { margin-bottom: 1rem; letter-spacing: 0.08em; }
+  .enlargeDivider { margin: 1rem 0; }
+  .qrCard { padding: 0.6rem; }
 }
 
 .qrUrl {

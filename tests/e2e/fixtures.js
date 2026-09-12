@@ -22,7 +22,7 @@ const MAX_AGE = 30 * 24 * 60 * 60; // 30 days
  * lead_web_dev / student). Pair with a seeded roster row for that netID so
  * pages that fetch /api/users/me etc. have something to find.
  */
-export async function loginAs(context, { netID, role, sub } = {}) {
+export async function loginAs(context, { netID, role, sub, isNewUser = false, onboardingSession } = {}) {
   // Stop the previous user's page before replacing its session cookie.
   // An in-flight /api/auth/session response can otherwise overwrite the
   // newly minted cookie and silently switch a multi-role test back.
@@ -37,6 +37,8 @@ export async function loginAs(context, { netID, role, sub } = {}) {
       role,
       roleVerifiedAt: Date.now(),
       name: netID,
+      isNewUser,
+      onboardingSession: isNewUser ? (onboardingSession || `test-onboarding-${netID}`) : null,
     },
     secret,
     maxAge: MAX_AGE,

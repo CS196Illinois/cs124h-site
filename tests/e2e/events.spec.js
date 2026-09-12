@@ -55,6 +55,16 @@ test.describe("events: create, check-in toggle, and creator-scoped permissions",
     await expect(enlarged.getByRole("link", { name: checkInUrl })).toBeVisible();
     await expect(enlarged.getByAltText("QR code to the check-in link for this event")).toBeVisible();
 
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      const codeBox = await enlarged.locator('[class*="enlargeDigits"]').boundingBox();
+      const qrBox = await enlarged.getByAltText("QR code to the check-in link for this event").boundingBox();
+      expect(codeBox.x).toBeGreaterThanOrEqual(0);
+      expect(codeBox.x + codeBox.width).toBeLessThanOrEqual(width);
+      expect(qrBox.x).toBeGreaterThanOrEqual(0);
+      expect(qrBox.x + qrBox.width).toBeLessThanOrEqual(width);
+    }
+
     await page.getByRole("button", { name: "Close enlarged code" }).click();
     await expect(page.getByRole("button", { name: "Close enlarged code" })).not.toBeVisible();
     // Still on the events page, code still showing normally.

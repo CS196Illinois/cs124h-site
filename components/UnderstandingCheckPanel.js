@@ -121,6 +121,7 @@ export default function UnderstandingCheckPanel({ sprint, scope }) {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
               <button
+                data-tour="sprint-open-check"
                 className={data.isOpen ? styles.btnDanger : styles.btnComplete}
                 onClick={() => toggleWindow(data.groupNumber, data.isOpen)}
                 disabled={busyGroup === data.groupNumber}

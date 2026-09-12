@@ -279,7 +279,7 @@ export default function PMActionItems() {
               <button className={`${styles.chip} ${scope === "mine" ? styles.activeChip : ""}`} onClick={() => setScope("mine")}>My Items</button>
               <button className={`${styles.chip} ${scope === "all"  ? styles.activeChip : ""}`} onClick={() => setScope("all")}>All Group Items</button>
             </div>
-            <button className={styles.btnPrimary} onClick={() => setShowModal(true)} disabled={loading || myRecord?.group_number == null}>
+            <button data-tour="action-assign" className={styles.btnPrimary} onClick={() => setShowModal(true)} disabled={loading || myRecord?.group_number == null}>
               + Assign to Group
             </button>
           </div>

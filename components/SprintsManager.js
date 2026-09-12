@@ -225,7 +225,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
           ))
         )}
         {canManage && (
-          <button className={styles.btnPrimary} style={{ marginLeft: "auto" }} onClick={openCreate}>
+          <button data-tour="sprint-new" className={styles.btnPrimary} style={{ marginLeft: "auto" }} onClick={openCreate}>
             + New Sprint
           </button>
         )}

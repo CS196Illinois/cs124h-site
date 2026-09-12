@@ -174,7 +174,7 @@ export default function PMStudents() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <button className={styles.btnSecondary} onClick={handleExport} disabled={filteredStudents.length === 0}>
+              <button data-tour="students-export" className={styles.btnSecondary} onClick={handleExport} disabled={filteredStudents.length === 0}>
                 Export CSV
               </button>
             </div>

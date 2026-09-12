@@ -330,7 +330,7 @@ export default function EventsPanel() {
               Attendance Sheet
             </a>
           )}
-          <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
+          <button data-tour="event-new" className={styles.btnPrimary} onClick={() => setShowModal(true)}>
             + New Event
           </button>
         </div>

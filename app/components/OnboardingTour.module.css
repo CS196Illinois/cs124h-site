@@ -1,5 +1,7 @@
 .backdrop { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 1rem; background: rgba(3, 8, 28, 0.78); backdrop-filter: blur(5px); }
-.card { width: min(100%, 560px); padding: clamp(1.35rem, 4vw, 2.4rem); border: 1px solid rgba(236,181,87,.35); border-radius: 20px; background: #18245d; color: #f9f9f9; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
+.hasSpotlight { background: rgba(3, 8, 28, 0.42); backdrop-filter: none; }
+.spotlight { position: fixed; z-index: 3001; border: 2px solid #ecb557; border-radius: 9px; box-shadow: 0 0 0 9999px rgba(3, 8, 28, 0.62), 0 0 24px rgba(236,181,87,.55); pointer-events: none; transition: top .2s ease, left .2s ease, width .2s ease, height .2s ease; }
+.card { position: relative; z-index: 3002; width: min(100%, 560px); padding: clamp(1.35rem, 4vw, 2.4rem); border: 1px solid rgba(236,181,87,.35); border-radius: 20px; background: #18245d; color: #f9f9f9; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
 .progress { display: flex; justify-content: space-between; gap: 1rem; color: rgba(249,249,249,.58); font: .75rem Inter,sans-serif; text-transform: uppercase; letter-spacing: .06em; }
 .progressBar { height: 5px; margin: .7rem 0 2rem; overflow: hidden; border-radius: 9px; background: rgba(255,255,255,.1); }.progressBar span { display: block; height: 100%; border-radius: inherit; background: #ecb557; transition: width .2s ease; }
 .illustration { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 1rem; border-radius: 16px; background: rgba(236,181,87,.14); color: #ecb557; font: 2rem Kufam,sans-serif; }

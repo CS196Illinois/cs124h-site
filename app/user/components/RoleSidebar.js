@@ -85,6 +85,7 @@ export default function RoleSidebar({ links, base, roleTitle, ownRole, banner, c
               href={fullHref}
               ref={(el) => { linkRefs.current[i] = el; }}
               className={`${styles.link} ${isActive ? styles.active : ""}`}
+              data-tour={`nav-${link.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`}
               aria-current={isActive ? "page" : undefined}
             >
               {link.label}

@@ -80,12 +80,14 @@ export default function PMGradebook() {
           </div>
         </div>
       ) : (
+        <div data-tour="gradebook-view">
         <GradebookView
           students={students}
           items={items}
           groupBy={false}
           emptyMessage="No gradable action items assigned to your group yet."
         />
+        </div>
       )}
     </div>
   );
