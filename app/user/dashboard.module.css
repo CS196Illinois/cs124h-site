@@ -544,71 +544,22 @@ select.roleSelect {
   line-height: 1.45;
 }
 
-.questionBankRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  color: rgba(249, 249, 249, 0.92);
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.questionBankRow > span {
-  flex: 1;
-  min-width: 0;
-}
-
-.questionBankAdd {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-
-.questionBankAdd input {
-  flex: 1;
-  min-width: 0;
-}
-
+.questionBankTitle { color: #f9f9f9; font: 600 1rem/1.4 Inter, sans-serif; }
+.questionBankList { display: grid; gap: .65rem; }
+.questionBankRow { padding: .85rem; border: 1px solid #45517f; border-radius: 8px; background: #202e64; }
+.formGroup .questionBankChoice { display: flex; align-items: flex-start; gap: .75rem; margin: 0; color: #f9f9f9; font-size: .9rem; line-height: 1.5; cursor: pointer; }
+.questionBankChoice input { margin-top: .15rem; }
+.questionBankChoice span { min-width: 0; overflow-wrap: anywhere; }
+.questionBankActions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .65rem 0 0 1.85rem; }
+.questionBankComposer { display: grid; gap: .5rem; padding-top: .75rem; border-top: 1px solid #45517f; }
+.questionBankComposer button { justify-self: start; }
+.modal, .panel, .container { font-family: Inter, sans-serif; color: #f9f9f9; }
+.btnSecondary:disabled, .btnDanger:disabled { cursor: not-allowed; opacity: .6; }
+.btnSmall:focus-visible, .btnSecondary:focus-visible, .btnDanger:focus-visible, .btnPrimary:focus-visible { outline: 2px solid #ecb557; outline-offset: 3px; }
+.questionBankActions button { min-height: 36px; }
 @media (max-width: 540px) {
-  .questionBankAdd {
-    flex-direction: column;
-  }
-
-  .questionBankRow {
-    flex-wrap: wrap;
-  }
-
-  .questionBankRow > span {
-    flex-basis: calc(100% - 2rem);
-  }
-}
-
-.formGroup select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='rgba(249%2C249%2C249%2C0.45)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 0.75rem;
-  padding-right: 2.4rem;
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.formGroup input:not([type="checkbox"]):not([type="radio"]):focus,
-.formGroup select:focus,
-.formGroup textarea:focus {
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 0 3px rgba(236, 181, 87, 0.12);
-}
-
-.formGroup select option {
-  background: #18245d;
-  color: #f9f9f9;
-}
-
-.formGroup textarea {
-  resize: vertical;
-  min-height: 80px;
+  .modal { padding: 1.25rem; }
+  .questionBankActions button { min-height: 44px; }
 }
 
 .checkboxLabel {

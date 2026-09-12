@@ -4,7 +4,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 
-const EDIT_ROLES = ["course_lead"];
+const EDIT_ROLES = ["course_lead", "head_pm", "pm"];
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function POST(request) {
   const session = await getServerSession(authOptions);
-  if (!EDIT_ROLES.includes(session?.user?.role)) return NextResponse.json({ error: "Only course leads and head PMs can manage the shared question bank." }, { status: 403 });
+  if (!EDIT_ROLES.includes(session?.user?.role)) return NextResponse.json({ error: "Only course leads, head PMs, and PMs can add shared questions." }, { status: 403 });
   const body = await request.json().catch(() => null);
   const question = String(body?.question ?? "").trim();
   if (!question) return NextResponse.json({ error: "Enter a question before adding it to the bank." }, { status: 400 });

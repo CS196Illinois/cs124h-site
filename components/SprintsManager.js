@@ -29,6 +29,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
   const [modalError, setModalError] = useState(null);
   const [questionBank, setQuestionBank] = useState([]);
   const [newBankQuestion, setNewBankQuestion] = useState("");
+  const [bankBusy, setBankBusy] = useState(false);
 
   const fetchBase = useCallback(async () => {
     setLoading(true);
@@ -153,12 +154,20 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
   const addBankQuestion = async () => {
     const question = newBankQuestion.trim();
     if (!question) return;
-    const res = await fetch("/api/sprint-question-bank", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setModalError(data.error || "The question could not be added."); return; }
-    setQuestionBank((prev) => [...prev, data]);
-    setForm((f) => ({ ...f, check_questions: [...f.check_questions, data.question] }));
-    setNewBankQuestion("");
+    setBankBusy(true);
+    setModalError(null);
+    try {
+      const res = await fetch("/api/sprint-question-bank", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setModalError(data.error || "The question could not be added."); return; }
+      setQuestionBank((prev) => [...prev, data]);
+      setForm((f) => ({ ...f, check_questions: [...new Set([...f.check_questions, data.question])] }));
+      setNewBankQuestion("");
+    } catch {
+      setModalError("The question could not be saved. Check your connection and try again.");
+    } finally {
+      setBankBusy(false);
+    }
   };
 
   const editBankQuestion = async (item) => {
@@ -345,7 +354,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
       {/* Create / Edit modal */}
       {showModal && (
         <div className={styles.overlay} onClick={() => setShowModal(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Sprint details" onClick={(e) => e.stopPropagation()}>
             <h2>{editingSprint ? (canManage ? "Edit Sprint" : "Edit Understanding Check") : "New Sprint"}</h2>
             {modalError && <div className={styles.alertError}>{modalError}</div>}
             {canManage && <div className={styles.formGroup}>
@@ -384,74 +393,46 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
             </div>}
             {canManageQuestions && (
               <div className={styles.formGroup}>
-                <label>Understanding Check Questions (choose any, optional)</label>
                 <div className={styles.questionBank}>
-                {questionBank.length > 0 && <div>
-                  <small className={styles.questionBankHint}>Shared question bank</small>
-                  {questionBank.map((item) => <label key={item.id} className={styles.questionBankRow}>
-                    <input type="checkbox" checked={form.check_questions.includes(item.question)} disabled={!canManage && form.check_questions.includes(item.question)} onChange={() => toggleBankQuestion(item.question)} />
-                    <span>{item.question}</span>
-                    {canManageQuestionBank && <span style={{ display: "inline-flex", gap: "0.25rem" }}><button type="button" className={styles.btnSmall} onClick={() => editBankQuestion(item)}>Edit</button><button type="button" className={styles.btnDanger} onClick={() => deleteBankQuestion(item)}>Remove</button></span>}
-                  </label>)}
-                </div>}
-                {canManageQuestionBank && <div className={styles.questionBankAdd}><input value={newBankQuestion} onChange={(e) => setNewBankQuestion(e.target.value)} placeholder="Add a shared question" /><button type="button" className={styles.btnSecondary} onClick={addBankQuestion}>Add to bank</button></div>}
-                {form.check_questions.length === 0 ? (
-                  <>
-                    <div className={styles.questionBankEmpty}>No questions selected. Choose from the bank or add a custom question below.</div>
-                    <button
-                      type="button"
-                      className={styles.btnSecondary}
-                      onClick={() => setForm((f) => ({ ...f, check_questions: [...f.check_questions, ""] }))}
-                    >
-                      + Add Question
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {form.check_questions.map((q, i) => (
-                      <div key={i} style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
-                        <textarea
-                          rows={2}
-                          value={q}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setForm((f) => ({
-                              ...f,
-                              check_questions: f.check_questions.map((x, xi) => (xi === i ? value : x)),
-                            }));
-                          }}
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          type="button"
-                          className={styles.btnDanger}
-                          disabled={!canManage && questionBank.some((bankItem) => bankItem.question === q)}
-                          title={!canManage && questionBank.some((bankItem) => bankItem.question === q) ? "Shared questions can only be removed by a course lead." : "Remove question"}
-                          onClick={() => setForm((f) => ({ ...f, check_questions: f.check_questions.filter((_, xi) => xi !== i) }))}
-                        >
-                          {!canManage && questionBank.some((bankItem) => bankItem.question === q) ? "Shared" : "Remove"}
-                        </button>
+                  <div>
+                    <h3 className={styles.questionBankTitle}>Understanding check questions</h3>
+                    <p className={styles.questionBankHint}>Select questions for this sprint. New questions are saved to the shared bank for future sprints.</p>
+                  </div>
+                  <div className={styles.questionBankList}>
+                    {[...questionBank, ...form.check_questions.filter((q) => !questionBank.some((b) => b.question === q)).map((question, i) => ({ id: `saved-${i}`, question, saved: true }))].map((item) => (
+                      <div key={item.id} className={styles.questionBankRow}>
+                        <label className={styles.questionBankChoice}>
+                          <input className={styles.checkboxInput} type="checkbox"
+                            checked={form.check_questions.includes(item.question)}
+                            disabled={!canManage && (editingSprint?.check_questions ?? []).includes(item.question)}
+                            onChange={() => toggleBankQuestion(item.question)} />
+                          <span>{item.question}</span>
+                        </label>
+                        {canManageQuestionBank && !item.saved && (
+                          <div className={styles.questionBankActions}>
+                            <button type="button" className={styles.btnSmall} onClick={() => editBankQuestion(item)}>Edit</button>
+                            <button type="button" className={styles.btnDanger} onClick={() => deleteBankQuestion(item)}>Remove from bank</button>
+                          </div>
+                        )}
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      className={styles.btnSecondary}
-                      onClick={() => setForm((f) => ({ ...f, check_questions: [...f.check_questions, ""] }))}
-                    >
-                      + Add Question
-                    </button>
-                    <div style={{ marginTop: "0.75rem" }}>
-                      <label>Max Score (optional, defaults to 100)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={form.check_max_score}
-                        onChange={(e) => setForm((f) => ({ ...f, check_max_score: e.target.value }))}
-                        placeholder="100"
-                      />
-                    </div>
-                  </>
-                )}
+                  </div>
+                  <div className={styles.questionBankComposer}>
+                    <label htmlFor="new-sprint-question">New question</label>
+                    <textarea id="new-sprint-question" rows={2} maxLength={500} value={newBankQuestion}
+                      onChange={(e) => setNewBankQuestion(e.target.value)}
+                      placeholder="What would you like students to reflect on?" />
+                    {newBankQuestion.trim() && <p className={styles.questionBankHint}>Add this question before saving the sprint, or clear it to discard it.</p>}
+                    <button type="button" className={styles.btnSecondary} disabled={bankBusy || !newBankQuestion.trim()}
+                      onClick={addBankQuestion}>{bankBusy ? "Adding…" : "Add question"}</button>
+                  </div>
+                  <p className={styles.questionBankHint}>{form.check_questions.length} selected for this sprint</p>
+                  {form.check_questions.length > 0 && <div>
+                    <label htmlFor="sprint-max-score">Maximum score</label>
+                    <input id="sprint-max-score" type="number" min="1" value={form.check_max_score}
+                      onChange={(e) => setForm((f) => ({ ...f, check_max_score: e.target.value }))}
+                      placeholder="100" />
+                  </div>}
                 </div>
               </div>
             )}
@@ -459,7 +440,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
               <button className={styles.btnSecondary} onClick={() => setShowModal(false)}>
                 Cancel
               </button>
-              <button className={styles.btnPrimary} onClick={handleSave} disabled={saving}>
+              <button className={styles.btnPrimary} onClick={handleSave} disabled={saving || bankBusy || !!newBankQuestion.trim()}>
                 {saving ? "Saving…" : editingSprint ? "Save Changes" : "Create Sprint"}
               </button>
             </div>
