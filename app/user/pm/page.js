@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "../dashboard.module.css";
-import { localTodayISO, formatDueDate } from "../../../lib/dateFormat";
+import { courseTodayISO, formatDueDate } from "../../../lib/dateFormat";
 
 export default function PMDashboard() {
   const { data: session, status } = useSession();
@@ -30,7 +30,7 @@ export default function PMDashboard() {
     if (itemsRes.ok) setActionItems(await itemsRes.json());
     if (spRes.ok) {
       const spData = await spRes.json();
-      const today = localTodayISO();
+      const today = courseTodayISO();
       const cur = spData.find((s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date) || spData[0] || null;
       setCurrentSprint(cur);
       if (cur) {

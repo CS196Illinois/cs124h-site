@@ -77,6 +77,32 @@ describe("sprints CRUD", () => {
     const res = await POST(makeRequest("http://localhost/api/sprints", { method: "POST", body: { goal: "" } }));
     expect(res.status).toBe(400);
   });
+
+  it("rejects invalid sprint numbers and reversed or malformed date ranges", async () => {
+    asRole("course_lead", "lead1");
+    for (const body of [
+      { number: -1, goal: "Bad number" },
+      { number: 1, goal: "Reversed", start_date: "2026-09-20", end_date: "2026-09-19" },
+      { number: 2, goal: "Malformed", start_date: "09/20/2026" },
+      { number: 3, goal: "Impossible date", start_date: "2026-02-30" },
+      { number: 4, goal: "Bad score", check_max_score: 0 },
+    ]) {
+      const res = await POST(makeRequest("http://localhost/api/sprints", { method: "POST", body }));
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it("does not let non-course-leads mutate or delete a future sprint by id", async () => {
+    const sprint = await insertSprint({ number: 9, goal: "Future", start_date: "2099-01-01" });
+    asRole("pm", "pm1");
+    const patchRes = await PATCH(
+      makeRequest(`http://localhost/api/sprints/${sprint.id}`, { method: "PATCH", body: { check_questions: ["Hidden"] } }),
+      { params: { id: sprint.id } },
+    );
+    expect(patchRes.status).toBe(404);
+    const deleteRes = await DELETE(makeRequest(`http://localhost/api/sprints/${sprint.id}`, { method: "DELETE" }), { params: { id: sprint.id } });
+    expect(deleteRes.status).toBe(404);
+  });
 });
 
 describe("sprints CRUD - sandbox mode", () => {

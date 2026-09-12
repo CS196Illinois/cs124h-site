@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDueDate, formatLocalDate, formatLocalDateTime, localTodayISO, datetimeLocalToISO } from "../../lib/dateFormat";
+import { formatDueDate, formatLocalDate, formatLocalDateTime, localTodayISO, courseTodayISO, datetimeLocalToISO } from "../../lib/dateFormat";
 
 describe("dateFormat", () => {
   it("formats a due date (UTC-midnight) as the same calendar day everywhere", () => {
@@ -22,6 +22,11 @@ describe("dateFormat", () => {
 
   it("localTodayISO returns a YYYY-MM-DD string", () => {
     expect(localTodayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("courseTodayISO uses the Chicago course calendar at UTC day boundaries", () => {
+    expect(courseTodayISO(new Date("2026-09-12T04:30:00Z"))).toBe("2026-09-11");
+    expect(courseTodayISO(new Date("2026-09-12T05:30:00Z"))).toBe("2026-09-12");
   });
 
   it("datetimeLocalToISO turns a naive local datetime into a UTC ISO string", () => {

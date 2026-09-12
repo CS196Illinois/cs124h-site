@@ -6,7 +6,7 @@ import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../lib/sandbox";
 import { normalizeQuestions } from "../../../lib/sprintChecks";
-import { isSprintVisibleToRole } from "../../../lib/sprintVisibility";
+import { isSprintVisibleToRole, validateSprintDates } from "../../../lib/sprintVisibility";
 
 const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev"];
 
@@ -52,8 +52,17 @@ export async function POST(request) {
   if (number == null || !goal?.trim()) {
     return NextResponse.json({ error: "number and goal are required" }, { status: 400 });
   }
+  const sprintNumber = Number(number);
+  if (!Number.isInteger(sprintNumber) || sprintNumber < 0) {
+    return NextResponse.json({ error: "Sprint number must be a non-negative whole number." }, { status: 400 });
+  }
+  const dateError = validateSprintDates(start_date, end_date);
+  if (dateError) return NextResponse.json({ error: dateError }, { status: 400 });
+  if (check_max_score != null && check_max_score !== "" && (!Number.isFinite(Number(check_max_score)) || Number(check_max_score) <= 0)) {
+    return NextResponse.json({ error: "Maximum score must be a positive number." }, { status: 400 });
+  }
   const row = {
-    number: Number(number),
+    number: sprintNumber,
     goal: goal.trim(),
     start_date: start_date || null,
     end_date: end_date || null,

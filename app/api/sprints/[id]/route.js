@@ -5,6 +5,7 @@ import { supabaseServer } from "../../../../lib/supabaseServer";
 import { table } from "../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, sandboxWrite } from "../../../../lib/sandbox";
 import { normalizeQuestions } from "../../../../lib/sprintChecks";
+import { isSprintVisibleToRole, validateSprintDates } from "../../../../lib/sprintVisibility";
 
 const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev", "pm"];
 
@@ -16,6 +17,9 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
   const { id } = await params;
+  const { data: existingSprint } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
+  if (!existingSprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!isSprintVisibleToRole(existingSprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
@@ -34,6 +38,12 @@ export async function PATCH(request, { params }) {
     }
   }
   if (updates.goal != null) updates.goal = String(updates.goal).trim();
+  if ("goal" in updates && !updates.goal) return NextResponse.json({ error: "Goal cannot be empty." }, { status: 400 });
+  const dateError = validateSprintDates(updates.start_date ?? existingSprint.start_date, updates.end_date ?? existingSprint.end_date);
+  if (dateError) return NextResponse.json({ error: dateError }, { status: 400 });
+  if ("number" in updates && (!Number.isInteger(updates.number) || updates.number < 0)) {
+    return NextResponse.json({ error: "Sprint number must be a non-negative whole number." }, { status: 400 });
+  }
   if ("check_questions" in updates) updates.check_questions = normalizeQuestions(updates.check_questions);
   if (userRole === "pm" && "check_questions" in updates) {
     const [{ data: current }, { data: bank }] = await Promise.all([
@@ -44,7 +54,13 @@ export async function PATCH(request, { params }) {
     const removedBankQuestion = (current?.check_questions ?? []).some((question) => bankQuestions.has(question) && !(updates.check_questions ?? []).includes(question));
     if (removedBankQuestion) return NextResponse.json({ error: "PMs can add custom questions and select bank questions, but cannot remove a shared question. Ask a course lead to change the question bank." }, { status: 403 });
   }
-  if (updates.check_max_score != null) updates.check_max_score = Number(updates.check_max_score) || null;
+  if (updates.check_max_score != null && updates.check_max_score !== "") {
+    const maxScore = Number(updates.check_max_score);
+    if (!Number.isFinite(maxScore) || maxScore <= 0) return NextResponse.json({ error: "Maximum score must be a positive number." }, { status: 400 });
+    updates.check_max_score = maxScore;
+  } else if ("check_max_score" in updates) {
+    updates.check_max_score = null;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
@@ -66,7 +82,6 @@ export async function PATCH(request, { params }) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
   return NextResponse.json(data);
 }
 
@@ -78,6 +93,9 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
   const { id } = await params;
+  const { data: existingSprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
+  if (!existingSprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!isSprintVisibleToRole(existingSprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
     await sandboxWrite(netID, "sprints", "delete", id, null);

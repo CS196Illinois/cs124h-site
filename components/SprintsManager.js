@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUndo } from "./UndoProvider";
 import styles from "../app/user/dashboard.module.css";
-import { localTodayISO } from "../lib/dateFormat";
+import { courseTodayISO } from "../lib/dateFormat";
 
 function getCurrentSprint(sprints) {
   if (!sprints.length) return null;
-  const today = localTodayISO();
+  const today = courseTodayISO();
   const active = sprints.find(
     (s) => s.start_date && s.end_date && s.start_date <= today && today <= s.end_date
   );
