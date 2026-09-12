@@ -40,10 +40,20 @@ export default function StudentSprints() {
     if (!selectedId) return;
     setLoadingCheck(true);
     setError("");
-    const res = await fetch(`/api/sprints/${selectedId}/check`);
-    const data = res.ok ? await res.json() : null;
-    setCheck(data);
-    setAnswers(data?.questions ? data.questions.map(() => "") : []);
+    try {
+      const res = await fetch(`/api/sprints/${selectedId}/check`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCheck(null);
+        setError(data.error || "We couldn't load this understanding check. Please refresh and try again.");
+      } else {
+        setCheck(data);
+        setAnswers(data?.questions ? data.questions.map(() => "") : []);
+      }
+    } catch {
+      setCheck(null);
+      setError("We couldn't reach the server. Check your connection and try again.");
+    }
     setLoadingCheck(false);
   }, [selectedId]);
 
@@ -55,14 +65,18 @@ export default function StudentSprints() {
     setError("");
     if (answers.some((a) => !a.trim())) { setError("Answer every question before submitting."); return; }
     setSubmitting(true);
-    const res = await fetch(`/api/sprints/${selectedId}/check/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
-    });
-    const json = await res.json();
-    if (!res.ok) { setError(json.error || "Failed to submit."); setSubmitting(false); return; }
-    await fetchCheck();
+    try {
+      const res = await fetch(`/api/sprints/${selectedId}/check/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json.error || "We couldn't submit your answers. Please try again."); setSubmitting(false); return; }
+      await fetchCheck();
+    } catch {
+      setError("We couldn't reach the server, so your answers were not submitted. Check your connection and try again.");
+    }
     setSubmitting(false);
   };
 

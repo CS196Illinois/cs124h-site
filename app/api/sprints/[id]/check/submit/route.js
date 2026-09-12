@@ -39,15 +39,17 @@ export async function POST(request, { params }) {
   }
 
   const now = new Date().toISOString();
+  // The production action_items constraint requires completion_date to be
+  // strictly after created_at, so leave a small margin instead of using the
+  // same timestamp for both fields.
+  const createdAt = new Date(Date.now() - 1000).toISOString();
   const row = {
     net_id: netID,
     title: `Sprint ${sprint.number} Understanding Check`,
     description: formatCheckAnswers(questions, answers),
-    // Set both timestamps from the same server-side instant. Production has
-    // an action_items check requiring completion_date >= created_at; relying
-    // on Postgres' created_at default can put created_at a few milliseconds
-    // after this completion timestamp and reject an otherwise valid check.
-    created_at: now,
+    // Set created_at explicitly. Relying on Postgres' default can put it a
+    // few milliseconds after this completion timestamp and reject the row.
+    created_at: createdAt,
     is_done: true,
     completion_date: now,
     assigned_by: window.opened_by,
@@ -61,9 +63,15 @@ export async function POST(request, { params }) {
   const { data, error } = await supabaseServer.from(table("actionItems")).insert(row).select().single();
   if (error) {
     if (error.code === "23505") {
-      return NextResponse.json({ error: "You've already submitted this check" }, { status: 409 });
+      return NextResponse.json({ error: "You already submitted this understanding check. Refresh the page to view your saved answers." }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === "23514") {
+      return NextResponse.json({
+        error: "Your answers are valid, but the submission could not be saved because the action-item database rule rejected it. Please refresh and try again. If it still fails, contact a course lead and include code SPRINT_CHECK_SAVE.",
+        code: "SPRINT_CHECK_SAVE",
+      }, { status: 500 });
+    }
+    return NextResponse.json({ error: "We couldn't save your understanding check right now. Please try again. If the problem continues, contact a course lead.", code: "SPRINT_CHECK_SAVE_UNKNOWN" }, { status: 500 });
   }
   return NextResponse.json(data, { status: 201 });
 }
