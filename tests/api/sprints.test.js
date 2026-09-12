@@ -22,6 +22,26 @@ describe("sprints CRUD", () => {
     expect(res.status).toBe(403);
   });
 
+  it("pm can edit understanding-check questions but not sprint metadata", async () => {
+    const sprint = await insertSprint({ number: 1, goal: "Original", check_questions: ["Old question"], check_max_score: 10 });
+    asRole("pm", "pm1");
+    const updated = await PATCH(
+      makeRequest(`http://localhost/api/sprints/${sprint.id}`, {
+        method: "PATCH",
+        body: { check_questions: ["New question", "Follow-up"], check_max_score: 20 },
+      }),
+      { params: { id: sprint.id } },
+    );
+    expect(updated.status).toBe(200);
+    expect((await updated.json()).check_questions).toEqual(["New question", "Follow-up"]);
+
+    const forbidden = await PATCH(
+      makeRequest(`http://localhost/api/sprints/${sprint.id}`, { method: "PATCH", body: { goal: "Changed" } }),
+      { params: { id: sprint.id } },
+    );
+    expect(forbidden.status).toBe(403);
+  });
+
   it("creates, lists newest-number-first, updates, and deletes a sprint", async () => {
     asRole("course_lead", "lead1");
     await POST(makeRequest("http://localhost/api/sprints", { method: "POST", body: { number: 1, goal: "First" } }));

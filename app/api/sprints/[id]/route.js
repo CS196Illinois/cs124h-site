@@ -6,7 +6,7 @@ import { table } from "../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, sandboxWrite } from "../../../../lib/sandbox";
 import { normalizeQuestions } from "../../../../lib/sprintChecks";
 
-const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev"];
+const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev", "pm"];
 
 export async function PATCH(request, { params }) {
   const session = await getServerSession(authOptions);
@@ -19,7 +19,14 @@ export async function PATCH(request, { params }) {
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const allowed = ["number", "goal", "start_date", "end_date", "check_questions", "check_max_score"];
+  // PMs can maintain the understanding-check content, but cannot change the
+  // sprint schedule or goal from their group-management view.
+  const allowed = userRole === "pm"
+    ? ["check_questions", "check_max_score"]
+    : ["number", "goal", "start_date", "end_date", "check_questions", "check_max_score"];
+  if (userRole === "pm" && ["number", "goal", "start_date", "end_date"].some((key) => key in body)) {
+    return NextResponse.json({ error: "PMs can edit understanding-check questions and max score, but not the sprint number, goal, or dates." }, { status: 403 });
+  }
   const updates = {};
   for (const key of allowed) {
     if (key in body) {

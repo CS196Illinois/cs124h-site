@@ -15,7 +15,7 @@ function getCurrentSprint(sprints) {
   return active || sprints[0];
 }
 
-export default function SprintsManager({ canManage = false, renderExtra }) {
+export default function SprintsManager({ canManage = false, canManageQuestions = canManage, renderExtra }) {
   const { scheduleUndo } = useUndo();
   const [sprints, setSprints] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -103,14 +103,16 @@ export default function SprintsManager({ canManage = false, renderExtra }) {
     if (!form.goal.trim()) { setModalError("Goal is required"); return; }
     setSaving(true);
     setModalError(null);
-    const body = {
-      number: Number(form.number),
-      goal: form.goal.trim(),
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
-      check_questions: form.check_questions,
-      check_max_score: form.check_max_score || null,
-    };
+    const body = canManage
+      ? {
+          number: Number(form.number),
+          goal: form.goal.trim(),
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          check_questions: form.check_questions,
+          check_max_score: form.check_max_score || null,
+        }
+      : { check_questions: form.check_questions, check_max_score: form.check_max_score || null };
     const res = editingSprint
       ? await fetch(`/api/sprints/${editingSprint.id}`, {
           method: "PATCH",
@@ -213,14 +215,16 @@ export default function SprintsManager({ canManage = false, renderExtra }) {
                 </div>
               )}
             </div>
-            {canManage && (
+            {(canManage || canManageQuestions) && (
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                 <button className={styles.btnSecondary} onClick={() => openEdit(selectedSprint)}>
-                  Edit
+                  {canManage ? "Edit" : "Edit Questions"}
                 </button>
-                <button className={styles.btnDanger} onClick={() => handleDelete(selectedSprint.id)}>
-                  Delete
-                </button>
+                {canManage && (
+                  <button className={styles.btnDanger} onClick={() => handleDelete(selectedSprint.id)}>
+                    Delete
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -305,9 +309,9 @@ export default function SprintsManager({ canManage = false, renderExtra }) {
       {showModal && (
         <div className={styles.overlay} onClick={() => setShowModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h2>{editingSprint ? "Edit Sprint" : "New Sprint"}</h2>
+            <h2>{editingSprint ? (canManage ? "Edit Sprint" : "Edit Understanding Check") : "New Sprint"}</h2>
             {modalError && <div className={styles.alertError}>{modalError}</div>}
-            <div className={styles.formGroup}>
+            {canManage && <div className={styles.formGroup}>
               <label>Sprint Number</label>
               <input
                 type="number"
@@ -315,8 +319,8 @@ export default function SprintsManager({ canManage = false, renderExtra }) {
                 value={form.number}
                 onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
               />
-            </div>
-            <div className={styles.formGroup}>
+            </div>}
+            {canManage && <div className={styles.formGroup}>
               <label>Goal</label>
               <textarea
                 value={form.goal}
@@ -324,24 +328,24 @@ export default function SprintsManager({ canManage = false, renderExtra }) {
                 placeholder="What should students accomplish this sprint?"
                 rows={3}
               />
-            </div>
-            <div className={styles.formGroup}>
+            </div>}
+            {canManage && <div className={styles.formGroup}>
               <label>Start Date (optional)</label>
               <input
                 type="date"
                 value={form.start_date}
                 onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
               />
-            </div>
-            <div className={styles.formGroup}>
+            </div>}
+            {canManage && <div className={styles.formGroup}>
               <label>End Date (optional)</label>
               <input
                 type="date"
                 value={form.end_date}
                 onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
               />
-            </div>
-            {canManage && (
+            </div>}
+            {canManageQuestions && (
               <div className={styles.formGroup}>
                 <label>Understanding Check Questions (optional)</label>
                 {form.check_questions.length === 0 ? (
