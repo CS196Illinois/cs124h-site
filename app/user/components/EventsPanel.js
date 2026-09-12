@@ -597,30 +597,22 @@ export default function EventsPanel() {
                 <option value="groups">Group(s)</option>
               </select>
             </div>
-            {form.audience_type === "people" && (
-              <div className={styles.formGroup}>
-                <label htmlFor="event-audience-people">People</label>
-                <select id="event-audience-people" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
-                  {roster.map(person => <option key={person.net_id} value={person.net_id}>{person.name ? `${person.name} (${person.net_id})` : person.net_id}</option>)}
-                </select>
-                <small style={{ color: "rgba(249,249,249,0.55)" }}>Use Ctrl/Cmd-click to select multiple people.</small>
-              </div>
-            )}
-            {form.audience_type === "roles" && (
-              <div className={styles.formGroup}>
-                <label htmlFor="event-audience-roles">Roles</label>
-                <select id="event-audience-roles" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
-                  <option value="LEAD">Course Leads</option><option value="LEAD_WEB">Lead Web Devs</option><option value="HEAD">Head PMs</option><option value="PM">PMs</option><option value="WEB">Web Devs</option><option value="STUDENT">Students</option>
-                </select>
-              </div>
-            )}
-            {form.audience_type === "groups" && (
-              <div className={styles.formGroup}>
-                <label htmlFor="event-audience-groups">Groups</label>
-                <select id="event-audience-groups" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
-                  {[...new Set(roster.map(p => p.group_number).filter(g => g != null))].sort((a, b) => a - b).map(group => <option key={group} value={group}>Group {group}</option>)}
-                </select>
-              </div>
+            {form.audience_type !== "all" && (
+              <fieldset className={styles.audienceChoices}>
+                <legend>{form.audience_type === "roles" ? "Roles" : form.audience_type === "groups" ? "Groups" : "People"}</legend>
+                {(form.audience_type === "roles"
+                  ? [["LEAD", "Course Leads"], ["LEAD_WEB", "Lead Web Devs"], ["HEAD", "Head PMs"], ["PM", "PMs"], ["WEB", "Web Devs"], ["STUDENT", "Students"]]
+                  : form.audience_type === "groups"
+                    ? [...new Set(roster.map(p => p.group_number).filter(g => g != null))].sort((a, b) => a - b).map(g => [String(g), `Group ${g}`])
+                    : roster.map(p => [p.net_id, p.name ? `${p.name} (${p.net_id})` : p.net_id])
+                ).map(([value, label]) => (
+                  <label key={value} className={styles.checkboxLabel}>
+                    <input className={styles.checkboxInput} type="checkbox" checked={form.audience_values.includes(value)}
+                      onChange={e => setForm(f => ({ ...f, audience_values: e.target.checked ? [...f.audience_values, value] : f.audience_values.filter(v => v !== value) }))} />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
             )}
             <div className={styles.modalActions}>
               <button className={styles.btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>

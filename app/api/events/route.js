@@ -144,9 +144,16 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (error && (error.code === "PGRST204" || error.code === "42703")) {
-    ({ data, error } = await supabaseServer.from(table("events")).insert({ ...row, audience_type: undefined, audience_values: undefined }).select().single());
+  if (error) {
+    console.error("Event creation failed", { code: error.code, message: error.message });
+    const message = error.code === "PGRST204" || error.code === "42703"
+      ? "Events need a database update before they can be created. Ask the website administrator to apply the event audience migration, then try again."
+      : error.code === "23502"
+        ? "The event could not be saved because the database requires additional information. Try adding a start time. If it still fails, contact the website administrator."
+        : error.code === "23503"
+          ? "Your account could not be linked to the event. Refresh the page and try again; if this continues, ask the website administrator to check your roster entry."
+          : "The event could not be saved. Please try again. If this continues, contact the website administrator.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-  if (error) return NextResponse.json({ error: "Something went wrong while processing your request. Please try again. If the problem continues, contact your course staff." }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

@@ -827,3 +827,17 @@ select.roleSelect {
   .gradebookStats .statNumber { font-size: 1.5rem; }
   .gradebookStats .statLabel { font-size: 0.65rem; }
 }
+
+.groupFilter {
+  min-height: 36px;
+  max-width: 100%;
+  color-scheme: dark;
+  padding-right: .6rem;
+}
+.groupFilter option { background: #18245d; color: #f9f9f9; }
+.groupFilter:focus-visible { outline: 2px solid #ecb557; outline-offset: 3px; }
+@media (max-width: 768px) { .groupFilter { min-height: 44px; } }
+
+.audienceChoices { border: 1px solid #45517f; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: grid; gap: .6rem; max-height: 260px; overflow-y: auto; }
+.audienceChoices legend { color: #f9f9f9; padding: 0 .3rem; font-size: .9rem; }
+.audienceChoices label { min-height: 32px; color: #f9f9f9; line-height: 1.4; }

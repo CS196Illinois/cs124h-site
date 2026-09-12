@@ -1,5 +1,7 @@
 "use client";
 
+import GroupFilter from "../../../../components/GroupFilter";
+
 import { useState, useEffect, useCallback } from "react";
 import { useUndo } from "../../../../components/UndoProvider";
 import styles from "../../dashboard.module.css";
@@ -35,6 +37,7 @@ export default function HeadPMPeople() {
   const [users, setUsers] = useState([]);
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
@@ -68,6 +71,7 @@ export default function HeadPMPeople() {
 
   const filteredUsers = sortUsers(
     users.filter((u) => {
+      if (groupFilter === "UNASSIGNED" ? u.group_number != null : groupFilter !== "ALL" && String(u.group_number) !== groupFilter) return false;
       if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
       const q = search.toLowerCase();
       return !q || u.net_id.toLowerCase().includes(q) || (u.name && u.name.toLowerCase().includes(q));
@@ -191,6 +195,7 @@ export default function HeadPMPeople() {
                 </button>
               ))}
             </div>
+            <GroupFilter users={users} value={groupFilter} onChange={setGroupFilter} />
             <div className={styles.searchWrap}>
               <input
                 className={styles.searchBar}

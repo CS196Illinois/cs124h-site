@@ -1,5 +1,7 @@
 "use client";
 
+import GroupFilter from "../../../../components/GroupFilter";
+
 import { useState, useEffect, useCallback } from "react";
 import { useUndo } from "../../../../components/UndoProvider";
 import styles from "../../dashboard.module.css";
@@ -37,6 +39,7 @@ export default function CourseLeadPeople() {
   const [roles, setRoles] = useState([]);
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
@@ -72,6 +75,7 @@ export default function CourseLeadPeople() {
 
   const filteredUsers = sortUsers(
     users.filter((u) => {
+      if (groupFilter === "UNASSIGNED" ? u.group_number != null : groupFilter !== "ALL" && String(u.group_number) !== groupFilter) return false;
       const matchRole = roleFilter === "ALL"
         || (roleFilter === "STAFF" ? STAFF_ROLE_IDS.includes(u.role) : u.role === roleFilter);
       const q = search.toLowerCase();
@@ -196,6 +200,7 @@ export default function CourseLeadPeople() {
                 </button>
               ))}
             </div>
+            <GroupFilter users={users} value={groupFilter} onChange={setGroupFilter} />
             <div className={styles.searchWrap}>
               <input
                 className={styles.searchBar}
