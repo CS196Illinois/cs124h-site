@@ -385,12 +385,12 @@ export default function EventsPanel() {
                     </td>
                     <td>
                       <div className={styles.cellActions}>
-                        <button
+                        {event.created_by === session?.user?.netID && <button
                           className={`${styles.btnSmall} ${event.check_in_open ? styles.btnDanger : styles.btnComplete}`}
                           onClick={() => toggleCheckIn(event.id, event.check_in_open)}
                         >
                           {event.check_in_open ? "Close Check-in" : "Open Check-in"}
-                        </button>
+                        </button>}
                         <button
                           className={styles.btnSmall}
                           style={{ background: expandedId === event.id ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.07)", color: "#f9f9f9", border: "1px solid rgba(255,255,255,0.15)" }}
@@ -398,9 +398,9 @@ export default function EventsPanel() {
                         >
                           Attendees
                         </button>
-                        <button className={styles.btnDanger} onClick={() => deleteEvent(event.id)}>
+                        {event.created_by === session?.user?.netID && <button className={styles.btnDanger} onClick={() => deleteEvent(event.id)}>
                           Delete
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

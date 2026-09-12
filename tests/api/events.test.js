@@ -44,7 +44,7 @@ describe("GET/POST /api/events", () => {
 describe("PATCH/DELETE /api/events/[id]", () => {
   beforeEach(clearAllTestTables);
 
-  it("a pm or head pm can only touch events they created; a course lead can touch any", async () => {
+  it("only the event creator can edit or delete it, regardless of staff role", async () => {
     const mine = await insertEvent({ title: "mine", created_by: "pm1" });
     const others = await insertEvent({ title: "theirs", created_by: "pm2" });
     asRole("pm", "pm1");
@@ -68,15 +68,15 @@ describe("PATCH/DELETE /api/events/[id]", () => {
     );
     expect(headBlocked.status).toBe(403);
 
-    // A course lead is an event admin - the escape hatch for an orphaned event.
+    // Course leads can see all events, but cannot manage another creator's event.
     asRole("course_lead", "lead1");
     const leadEdit = await PATCH(
       makeRequest(`http://localhost/api/events/${others.id}`, { method: "PATCH", body: { title: "cleaned up" } }),
       { params: { id: others.id } }
     );
-    expect((await leadEdit.json()).title).toBe("cleaned up");
+    expect(leadEdit.status).toBe(403);
     const leadDel = await DELETE(makeRequest(`http://localhost/api/events/${others.id}`, { method: "DELETE" }), { params: { id: others.id } });
-    expect(leadDel.status).toBe(200);
+    expect(leadDel.status).toBe(403);
   });
 
   it("the creator can open check-in and delete their own event", async () => {
