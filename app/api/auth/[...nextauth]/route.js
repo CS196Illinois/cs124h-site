@@ -71,6 +71,10 @@ export const authOptions = {
         // Step 1: Look up by sub - handles any user who has logged in before.
         // sub is a CILogon UUID, not something a user can guess or predict.
         let record = await fetchRoleBySub(sub, clogonName);
+        // A missing sub match means this is the first successful login for the
+        // pre-created roster entry. Preserve that fact in the signed session
+        // token because the claim below fills the database sub immediately.
+        const isNewUser = !record;
 
         if (!record) {
           // Step 2: First ever login - claim the admin-pre-created roster entry
@@ -85,6 +89,7 @@ export const authOptions = {
         }
 
         token.role = record ? mapRole(record.role) : "error";
+        token.isNewUser = isNewUser && Boolean(record);
         token.roleVerifiedAt = Date.now();
         return token;
       }
@@ -110,6 +115,7 @@ export const authOptions = {
       if (session.user) {
         session.user.netID = token.netID;
         session.user.role = token.role;
+        session.user.isNewUser = token.isNewUser === true;
       }
       return session;
     },
