@@ -35,6 +35,15 @@ export async function PATCH(request, { params }) {
   }
   if (updates.goal != null) updates.goal = String(updates.goal).trim();
   if ("check_questions" in updates) updates.check_questions = normalizeQuestions(updates.check_questions);
+  if (userRole === "pm" && "check_questions" in updates) {
+    const [{ data: current }, { data: bank }] = await Promise.all([
+      supabaseServer.from(table("sprints")).select("check_questions").eq("id", id).maybeSingle(),
+      supabaseServer.from(table("sprintQuestionBank")).select("question"),
+    ]);
+    const bankQuestions = new Set((bank ?? []).map((row) => row.question));
+    const removedBankQuestion = (current?.check_questions ?? []).some((question) => bankQuestions.has(question) && !(updates.check_questions ?? []).includes(question));
+    if (removedBankQuestion) return NextResponse.json({ error: "PMs can add custom questions and select bank questions, but cannot remove a shared question. Ask a course lead to change the question bank." }, { status: 403 });
+  }
   if (updates.check_max_score != null) updates.check_max_score = Number(updates.check_max_score) || null;
 
   if (Object.keys(updates).length === 0) {

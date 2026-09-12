@@ -159,6 +159,16 @@ ALTER TABLE sprints ADD COLUMN IF NOT EXISTS created_at    timestamptz NOT NULL 
 ALTER TABLE sprints ADD COLUMN IF NOT EXISTS check_questions  jsonb;
 ALTER TABLE sprints ADD COLUMN IF NOT EXISTS check_max_score  numeric;
 
+CREATE TABLE IF NOT EXISTS sprint_question_bank (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), question text NOT NULL UNIQUE,
+  created_by text, created_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO sprint_question_bank (question, created_by) VALUES
+ ('What design decisions did you make this week, and why?', 'system'),
+ ('What alternative approaches did you consider, and why didn''t you choose them?', 'system'),
+ ('How well did your work this week integrate with the rest of your group''s work?', 'system')
+ON CONFLICT (question) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS sprint_completions (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid()
 );
@@ -280,6 +290,7 @@ ALTER TABLE event_checkins      DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sprints              DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sprint_completions  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sprint_check_windows DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_question_bank DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sandbox_overlay     DISABLE ROW LEVEL SECURITY;
 ALTER TABLE staff               DISABLE ROW LEVEL SECURITY;
 ALTER TABLE resources           DISABLE ROW LEVEL SECURITY;

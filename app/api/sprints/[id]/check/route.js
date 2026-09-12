@@ -6,6 +6,7 @@ import { table } from "../../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows } from "../../../../../lib/sandbox";
 import { resolveMaxScore } from "../../../../../lib/sprintChecks";
 import { isPmViewRole } from "../../../../../lib/roles";
+import { isSprintVisibleToRole } from "../../../../../lib/sprintVisibility";
 
 const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev"];
 
@@ -66,6 +67,7 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const { data: sprint } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
   if (!sprint) return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+  if (!isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
 
   const hasCheck = Array.isArray(sprint.check_questions) && sprint.check_questions.length > 0;
   const maxScore = resolveMaxScore(sprint);

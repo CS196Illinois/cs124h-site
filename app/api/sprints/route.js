@@ -6,6 +6,7 @@ import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../lib/sandbox";
 import { normalizeQuestions } from "../../../lib/sprintChecks";
+import { isSprintVisibleToRole } from "../../../lib/sprintVisibility";
 
 const MANAGE_ROLES = ["course_lead", "head_pm", "lead_web_dev", "web_dev"];
 
@@ -27,6 +28,7 @@ export async function GET() {
     rows = await mergeSandboxRows(netID, "sprints", rows, () => true);
     rows.sort((a, b) => b.number - a.number);
   }
+  rows = rows.filter((sprint) => isSprintVisibleToRole(sprint, userRole));
 
   // Understanding-check question text is only for the roles that author it -
   // a PM/student only ever learns it through /api/sprints/[id]/check, which

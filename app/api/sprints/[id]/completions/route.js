@@ -5,6 +5,7 @@ import { authOptions } from "../../../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../../../lib/supabaseServer";
 import { table } from "../../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../../../lib/sandbox";
+import { isSprintVisibleToRole } from "../../../../../lib/sprintVisibility";
 
 export async function GET(request, { params }) {
   const session = await getServerSession(authOptions);
@@ -14,6 +15,8 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+  const { data: sprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
+  if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const { data, error } = await supabaseServer
     .from(table("sprintCompletions"))
     .select("*")
@@ -37,6 +40,8 @@ export async function POST(request, { params }) {
   }
 
   const { id } = await params;
+  const { data: sprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
+  if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const body = await request.json().catch(() => null);
   if (!body?.student_net_id) {
     return NextResponse.json({ error: "student_net_id is required" }, { status: 400 });

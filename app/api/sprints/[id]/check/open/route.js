@@ -6,6 +6,7 @@ import { supabaseServer } from "../../../../../../lib/supabaseServer";
 import { table } from "../../../../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../../../../lib/sandbox";
 import { resolveActorGroup } from "../route";
+import { isSprintVisibleToRole } from "../../../../../../lib/sprintVisibility";
 
 export async function POST(request, { params }) {
   const session = await getServerSession(authOptions);
@@ -15,6 +16,8 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+  const { data: sprint } = await supabaseServer.from(table("sprints")).select("start_date").eq("id", id).maybeSingle();
+  if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const body = await request.json().catch(() => ({}));
 
   const { groupNumber, error, status } = await resolveActorGroup(userRole, netID, body.group_number);

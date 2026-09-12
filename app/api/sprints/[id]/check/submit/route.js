@@ -4,6 +4,7 @@ import { authOptions } from "../../../../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../../../../lib/supabaseServer";
 import { table } from "../../../../../../lib/tables";
 import { resolveMaxScore, formatCheckAnswers } from "../../../../../../lib/sprintChecks";
+import { isSprintVisibleToRole } from "../../../../../../lib/sprintVisibility";
 
 // Student only - web_dev/lead_web_dev sandbox previews never reach here,
 // since neither role can itself be "student".
@@ -19,6 +20,7 @@ export async function POST(request, { params }) {
   const answers = Array.isArray(body?.answers) ? body.answers : null;
 
   const { data: sprint } = await supabaseServer.from(table("sprints")).select("*").eq("id", id).maybeSingle();
+  if (!sprint || !isSprintVisibleToRole(sprint, userRole)) return NextResponse.json({ error: "This sprint is not available yet." }, { status: 404 });
   const questions = Array.isArray(sprint?.check_questions) ? sprint.check_questions : [];
   if (!questions.length) {
     return NextResponse.json({ error: "This sprint has no understanding check" }, { status: 400 });

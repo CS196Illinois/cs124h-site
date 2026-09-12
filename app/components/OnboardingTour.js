@@ -30,10 +30,13 @@ const TOUR_STEPS = {
     ["Share the right event", "When creating an event, choose everyone, roles, groups, or specific people. The audience controls both visibility and check-in access."],
   ],
   pm: [
-    ["Your group workspace", "Welcome! This dashboard is centered on your assigned group: students, action items, events, sprints, and the gradebook."],
-    ["Keep work actionable", "Assign action items to your group or selected students. Add a due date and enable grading when the work needs a score. Students can complete their own items."],
-    ["Run your meetings", "Create an event for your group, selected people, or any role. Open check-in when ready, then use Attendees to review or correct the roster."],
-    ["Use the gradebook", "Group averages include graded work only. Open a student for the full history, feedback, and a CSV export; zero is a valid score."],
+    ["Your group workspace", "This dashboard is centered on your assigned group. The sidebar gives you one place to reach students, action items, gradebook, events, sprints, and attendance."],
+    ["Start with My Students", "Use My Students to confirm your roster and group. Student names and NetIDs are the source of truth when assigning work or correcting attendance."],
+    ["Assign work clearly", "Use Action Items for work with an owner and due date. Choose one student or your group, explain the expected result, and enable grading only when a score is needed."],
+    ["Run the weekly check", "In Sprints, open your group’s understanding check during the meeting and close it afterward. You can choose shared questions and add a custom question, but shared bank questions stay in place."],
+    ["Run events safely", "Create an event for everyone, a role, a group, or selected people. Open check-in when ready, then use Attendees to review or correct the roster."],
+    ["Grade consistently", "Gradebook shows completed gradable work. Open a student for history and feedback, use zero for work that earns no points, and export when you need a copy."],
+    ["Need a quick reference?", "The PM Guide in the sidebar explains the weekly workflow, permissions, grading rules, attendance corrections, and what to do when something fails."],
   ],
   web_dev: [
     ["Your web developer workspace", "Welcome! Your dashboard combines web-team access with group tools when you have a group assigned."],

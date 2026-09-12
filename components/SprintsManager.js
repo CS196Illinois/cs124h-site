@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUndo } from "./UndoProvider";
 import styles from "../app/user/dashboard.module.css";
-import { DEFAULT_CHECK_QUESTIONS } from "../lib/sprintChecks";
 import { localTodayISO } from "../lib/dateFormat";
 
 function getCurrentSprint(sprints) {
@@ -15,7 +14,7 @@ function getCurrentSprint(sprints) {
   return active || sprints[0];
 }
 
-export default function SprintsManager({ canManage = false, canManageQuestions = canManage, renderExtra }) {
+export default function SprintsManager({ canManage = false, canManageQuestions = canManage, canManageQuestionBank = false, renderExtra }) {
   const { scheduleUndo } = useUndo();
   const [sprints, setSprints] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -28,12 +27,15 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
   const [form, setForm] = useState({ number: "", goal: "", start_date: "", end_date: "", check_questions: [], check_max_score: "" });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [questionBank, setQuestionBank] = useState([]);
+  const [newBankQuestion, setNewBankQuestion] = useState("");
 
   const fetchBase = useCallback(async () => {
     setLoading(true);
-    const [spRes, stuRes] = await Promise.all([
+    const [spRes, stuRes, bankRes] = await Promise.all([
       fetch("/api/sprints"),
       fetch("/api/users?role=STUDENT"),
+      fetch("/api/sprint-question-bank"),
     ]);
     let fetchedSprints = [];
     if (spRes.ok) {
@@ -44,6 +46,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
       }
     }
     if (stuRes.ok) setStudents(await stuRes.json());
+    if (bankRes.ok) setQuestionBank(await bankRes.json());
     setLoading(false);
   }, []);
 
@@ -139,6 +142,40 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
     if (!editingSprint) setSelectedId(saved.id);
     setShowModal(false);
     setSaving(false);
+  };
+
+  const toggleBankQuestion = (question) => {
+    setForm((f) => ({ ...f, check_questions: f.check_questions.includes(question)
+      ? f.check_questions.filter((q) => q !== question)
+      : [...f.check_questions, question] }));
+  };
+
+  const addBankQuestion = async () => {
+    const question = newBankQuestion.trim();
+    if (!question) return;
+    const res = await fetch("/api/sprint-question-bank", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setModalError(data.error || "The question could not be added."); return; }
+    setQuestionBank((prev) => [...prev, data]);
+    setForm((f) => ({ ...f, check_questions: [...f.check_questions, data.question] }));
+    setNewBankQuestion("");
+  };
+
+  const editBankQuestion = async (item) => {
+    const question = window.prompt("Edit shared question", item.question)?.trim();
+    if (!question || question === item.question) return;
+    const res = await fetch(`/api/sprint-question-bank/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setModalError(data.error || "The question could not be updated."); return; }
+    setQuestionBank((prev) => prev.map((q) => q.id === item.id ? data : q));
+    setForm((f) => ({ ...f, check_questions: f.check_questions.map((q) => q === item.question ? data.question : q) }));
+  };
+
+  const deleteBankQuestion = async (item) => {
+    if (!window.confirm("Remove this question from the shared bank? Existing sprint checks keep their saved copy.")) return;
+    const res = await fetch(`/api/sprint-question-bank/${item.id}`, { method: "DELETE" });
+    if (!res.ok) { const data = await res.json().catch(() => ({})); setModalError(data.error || "The question could not be removed."); return; }
+    setQuestionBank((prev) => prev.filter((q) => q.id !== item.id));
   };
 
   const handleDelete = (id) => {
@@ -347,15 +384,18 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
             </div>}
             {canManageQuestions && (
               <div className={styles.formGroup}>
-                <label>Understanding Check Questions (optional)</label>
+                <label>Understanding Check Questions (choose any, optional)</label>
+                {questionBank.length > 0 && <div style={{ marginBottom: "0.75rem", display: "grid", gap: "0.4rem" }}>
+                  <small style={{ color: "rgba(249,249,249,0.55)" }}>Shared question bank</small>
+                  {questionBank.map((item) => <label key={item.id} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontWeight: 400 }}>
+                    <input type="checkbox" checked={form.check_questions.includes(item.question)} disabled={!canManage && form.check_questions.includes(item.question)} onChange={() => toggleBankQuestion(item.question)} />
+                    <span style={{ flex: 1 }}>{item.question}</span>
+                    {canManageQuestionBank && <span style={{ display: "inline-flex", gap: "0.25rem" }}><button type="button" className={styles.btnSmall} onClick={() => editBankQuestion(item)}>Edit</button><button type="button" className={styles.btnDanger} onClick={() => deleteBankQuestion(item)}>Remove</button></span>}
+                  </label>)}
+                </div>}
+                {canManageQuestionBank && <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.75rem" }}><input value={newBankQuestion} onChange={(e) => setNewBankQuestion(e.target.value)} placeholder="Add a shared question" /><button type="button" className={styles.btnSecondary} onClick={addBankQuestion}>Add to bank</button></div>}
                 {form.check_questions.length === 0 ? (
-                  <button
-                    type="button"
-                    className={styles.btnSecondary}
-                    onClick={() => setForm((f) => ({ ...f, check_questions: [...DEFAULT_CHECK_QUESTIONS] }))}
-                  >
-                    + Add Understanding Check
-                  </button>
+                  <div style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem" }}>No questions selected. Choose from the bank or add a custom question below.</div>
                 ) : (
                   <>
                     {form.check_questions.map((q, i) => (
@@ -375,9 +415,11 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
                         <button
                           type="button"
                           className={styles.btnDanger}
+                          disabled={!canManage && questionBank.some((bankItem) => bankItem.question === q)}
+                          title={!canManage && questionBank.some((bankItem) => bankItem.question === q) ? "Shared questions can only be removed by a course lead." : "Remove question"}
                           onClick={() => setForm((f) => ({ ...f, check_questions: f.check_questions.filter((_, xi) => xi !== i) }))}
                         >
-                          Remove
+                          {!canManage && questionBank.some((bankItem) => bankItem.question === q) ? "Shared" : "Remove"}
                         </button>
                       </div>
                     ))}

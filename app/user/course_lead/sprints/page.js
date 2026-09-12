@@ -11,7 +11,7 @@ export default function CourseLeadSprints() {
         <h1>Sprints</h1>
         <p>Manage sprint goals and track student completion</p>
       </div>
-      <SprintsManager canManage renderExtra={(sprint) => <UnderstandingCheckPanel sprint={sprint} scope="all-groups" />} />
+      <SprintsManager canManage canManageQuestionBank renderExtra={(sprint) => <UnderstandingCheckPanel sprint={sprint} scope="all-groups" />} />
     </div>
   );
 }

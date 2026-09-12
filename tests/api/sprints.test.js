@@ -42,6 +42,16 @@ describe("sprints CRUD", () => {
     expect(forbidden.status).toBe(403);
   });
 
+  it("hides future sprints from PMs while course leads can prepare them", async () => {
+    await insertSprint({ number: 9, goal: "Future", start_date: "2099-01-01" });
+    asRole("pm", "pm1");
+    const pmRows = await (await GET(makeRequest("http://localhost/api/sprints"))).json();
+    expect(pmRows).toHaveLength(0);
+    asRole("course_lead", "lead1");
+    const leadRows = await (await GET(makeRequest("http://localhost/api/sprints"))).json();
+    expect(leadRows.some((s) => s.goal === "Future")).toBe(true);
+  });
+
   it("creates, lists newest-number-first, updates, and deletes a sprint", async () => {
     asRole("course_lead", "lead1");
     await POST(makeRequest("http://localhost/api/sprints", { method: "POST", body: { number: 1, goal: "First" } }));
