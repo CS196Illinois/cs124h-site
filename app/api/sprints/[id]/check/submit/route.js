@@ -43,6 +43,11 @@ export async function POST(request, { params }) {
     net_id: netID,
     title: `Sprint ${sprint.number} Understanding Check`,
     description: formatCheckAnswers(questions, answers),
+    // Set both timestamps from the same server-side instant. Production has
+    // an action_items check requiring completion_date >= created_at; relying
+    // on Postgres' created_at default can put created_at a few milliseconds
+    // after this completion timestamp and reject an otherwise valid check.
+    created_at: now,
     is_done: true,
     completion_date: now,
     assigned_by: window.opened_by,

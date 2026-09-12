@@ -111,6 +111,7 @@ describe("understanding check: submission", () => {
     expect(item.max_score).toBe(20);
     expect(item.assigned_by).toBe("pm1");
     expect(item.description).toContain("Because X.");
+    expect(new Date(item.created_at).getTime()).toBeLessThanOrEqual(new Date(item.completion_date).getTime());
 
     // Already submitted - rejected even though the window is still open.
     const dupe = await SUBMIT(
