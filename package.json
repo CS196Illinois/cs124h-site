@@ -26,5 +26,10 @@
     "dotenv": "^17.4.2",
     "supabase": "^2.76.12",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.23"
+    }
   }
 }

@@ -106,6 +106,7 @@ export default function RoleSidebar({ links, base, roleTitle, ownRole, banner, c
           className={styles.mobileToggle}
           onClick={() => setSidebarOpen(!sidebarOpen)}
           aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={sidebarOpen}
         >
           {sidebarOpen ? "✕" : "☰"}
         </button>
@@ -115,7 +116,7 @@ export default function RoleSidebar({ links, base, roleTitle, ownRole, banner, c
           onClick={() => setSidebarOpen(false)}
         />
 
-        <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarMobileOpen : ""}`}>
+        <aside inert={!sidebarOpen} className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarMobileOpen : ""}`}>
           {sidebarContent}
         </aside>
       </>

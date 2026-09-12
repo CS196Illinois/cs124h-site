@@ -2,6 +2,7 @@ import "./global.css";
 import AuthSessionProvider from "../components/AuthSessionProvider";
 import { UndoProvider } from "../components/UndoProvider";
 import Navbar from "../components/navbar.js";
+import OnboardingTour from "./components/OnboardingTour";
 
 export const metadata = {
   title: "CS124H",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
         <AuthSessionProvider>
           <UndoProvider>
             <Navbar />
+            <OnboardingTour />
             {children}
           </UndoProvider>
         </AuthSessionProvider>

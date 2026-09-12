@@ -25,6 +25,15 @@ function timeAgo(isoString) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+function audienceSummary(event) {
+  const values = Array.isArray(event.audience_values) ? event.audience_values : [];
+  if (!event.audience_type || event.audience_type === "all") return "Everyone can see and check in";
+  if (event.audience_type === "people") return `${values.length} selected ${values.length === 1 ? "person" : "people"}`;
+  if (event.audience_type === "roles") return `Roles: ${values.join(", ")}`;
+  if (event.audience_type === "groups") return `Groups: ${values.join(", ")}`;
+  return "Restricted audience";
+}
+
 export default function EventsPanel() {
   const { scheduleUndo } = useUndo();
   const { data: session } = useSession();
@@ -42,7 +51,7 @@ export default function EventsPanel() {
 
   // Create-event modal
   const [showModal, setShowModal]   = useState(false);
-  const [form, setForm]             = useState({ title: "", description: "", location: "", presenter: "", start_time: "", end_time: "" });
+  const [form, setForm]             = useState({ title: "", description: "", location: "", presenter: "", start_time: "", end_time: "", audience_type: "all", audience_values: [] });
   const [formError, setFormError]   = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
@@ -288,12 +297,13 @@ export default function EventsPanel() {
         ...form,
         start_time: datetimeLocalToISO(form.start_time),
         end_time: datetimeLocalToISO(form.end_time),
+        audience_values: form.audience_values.map(String),
       }),
     });
     const json = await res.json();
     if (!res.ok) { setFormError(json.error || "Failed to create event."); setFormLoading(false); return; }
     setShowModal(false);
-    setForm({ title: "", description: "", location: "", presenter: "", start_time: "", end_time: "" });
+    setForm({ title: "", description: "", location: "", presenter: "", start_time: "", end_time: "", audience_type: "all", audience_values: [] });
     setFormLoading(false);
     await fetchEvents();
   };
@@ -351,7 +361,12 @@ export default function EventsPanel() {
                 <>
                   {/* Main row */}
                   <tr key={event.id}>
-                    <td style={{ fontWeight: 500 }}>{event.title}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      <div>{event.title}</div>
+                      <div style={{ color: "rgba(249,249,249,0.45)", fontSize: "0.75rem", fontWeight: 400, marginTop: "0.2rem" }}>
+                        {audienceSummary(event)}
+                      </div>
+                    </td>
                     <td style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem" }}>
                       {formatLocalDateTime(event.start_time) ?? "-"}
                     </td>
@@ -573,6 +588,40 @@ export default function EventsPanel() {
                 />
               </div>
             </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="event-audience">Who can see and check in?</label>
+              <select id="event-audience" value={form.audience_type} onChange={e => setForm({ ...form, audience_type: e.target.value, audience_values: [] })}>
+                <option value="all">Everyone</option>
+                <option value="people">Specific people</option>
+                <option value="roles">Role(s)</option>
+                <option value="groups">Group(s)</option>
+              </select>
+            </div>
+            {form.audience_type === "people" && (
+              <div className={styles.formGroup}>
+                <label htmlFor="event-audience-people">People</label>
+                <select id="event-audience-people" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
+                  {roster.map(person => <option key={person.net_id} value={person.net_id}>{person.name ? `${person.name} (${person.net_id})` : person.net_id}</option>)}
+                </select>
+                <small style={{ color: "rgba(249,249,249,0.55)" }}>Use Ctrl/Cmd-click to select multiple people.</small>
+              </div>
+            )}
+            {form.audience_type === "roles" && (
+              <div className={styles.formGroup}>
+                <label htmlFor="event-audience-roles">Roles</label>
+                <select id="event-audience-roles" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
+                  <option value="LEAD">Course Leads</option><option value="LEAD_WEB">Lead Web Devs</option><option value="HEAD">Head PMs</option><option value="PM">PMs</option><option value="WEB">Web Devs</option><option value="STUDENT">Students</option>
+                </select>
+              </div>
+            )}
+            {form.audience_type === "groups" && (
+              <div className={styles.formGroup}>
+                <label htmlFor="event-audience-groups">Groups</label>
+                <select id="event-audience-groups" multiple value={form.audience_values} onChange={e => setForm({ ...form, audience_values: [...e.target.selectedOptions].map(o => o.value) })} style={{ minHeight: 110 }}>
+                  {[...new Set(roster.map(p => p.group_number).filter(g => g != null))].sort((a, b) => a - b).map(group => <option key={group} value={group}>Group {group}</option>)}
+                </select>
+              </div>
+            )}
             <div className={styles.modalActions}>
               <button className={styles.btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
               <button className={styles.btnPrimary} onClick={handleCreate} disabled={formLoading}>

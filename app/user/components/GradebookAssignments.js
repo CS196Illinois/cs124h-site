@@ -73,7 +73,13 @@ function GroupBreakdown({ students, assignment, expanded, onToggle, onView, onEx
             return (
               <Fragment key={g ?? "ungrouped"}>
                 <tr style={{ cursor: "pointer" }} onClick={() => onToggle(g)}>
-                  <td style={{ width: "1.5rem", opacity: 0.5 }}>{isOpen ? "▼" : "▶"}</td>
+                  <td style={{ width: "1.5rem" }}>
+                    <button type="button" className={styles.groupToggle} aria-expanded={isOpen}
+                      aria-label={`${isOpen ? "Collapse" : "Expand"} ${g != null ? `Group ${g}` : "Ungrouped"}`}
+                      onClick={(e) => { e.stopPropagation(); onToggle(g); }}>
+                      <span aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
+                    </button>
+                  </td>
                   <td style={{ fontWeight: 600 }}>{g != null ? `Group ${g}` : "Ungrouped"}</td>
                   <td style={{ color: "rgba(249,249,249,0.55)" }}>{groupStudents.length}</td>
                   <td style={{ fontWeight: 600 }}>{fmtPct(avg)}</td>
@@ -148,9 +154,9 @@ export default function GradebookAssignments({ students, items, groupBy }) {
     <div>
       <div className={styles.panel} style={{ marginBottom: "1.25rem" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: 220 }}>
-            <label>Assignment</label>
-            <select value={assignment.key} onChange={(e) => setSelectedKey(e.target.value)}>
+          <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: 0, flex: "1 1 220px" }}>
+            <label htmlFor="gradebook-assignment">Assignment</label>
+            <select id="gradebook-assignment" style={{ maxWidth: "100%" }} value={assignment.key} onChange={(e) => setSelectedKey(e.target.value)}>
               {assignments.map((a) => <option key={a.key} value={a.key}>{assignmentLabel(a)}</option>)}
             </select>
           </div>

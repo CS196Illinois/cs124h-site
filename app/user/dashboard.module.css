@@ -461,7 +461,7 @@ select.roleSelect {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 2000;
   padding: 1rem;
 }
 
@@ -777,4 +777,36 @@ select.roleSelect {
   border-color: transparent;
   color: #ffffff;
   font-weight: 600;
+}
+
+/* Gradebook controls remain usable with keyboard and on narrow screens. */
+.groupToggle {
+  background: transparent;
+  color: #f9f9f9;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.groupToggle:focus-visible {
+  outline: 2px solid #ecb557;
+  outline-offset: 2px;
+}
+.gradebookHint {
+  color: rgba(249, 249, 249, 0.75);
+  font: 0.85rem/1.6 "Inter", sans-serif;
+  margin-bottom: 1rem;
+}
+.gradebookHint summary { cursor: pointer; }
+.gradebookHint p { margin-top: 0.5rem; }
+@media (max-width: 480px) {
+  .modal { padding: 1rem; }
+  .gradebookStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .gradebookStats .statCard { padding: 0.85rem 0.35rem; }
+  .gradebookStats .statNumber { font-size: 1.5rem; }
+  .gradebookStats .statLabel { font-size: 0.65rem; }
 }

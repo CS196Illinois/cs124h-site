@@ -39,7 +39,7 @@ export default function GradebookView({ students, items, groupBy = false, emptyM
 
   return (
     <div>
-      <div className={styles.statsGrid}>
+      <div className={`${styles.statsGrid} ${styles.gradebookStats}`}>
         <div className={styles.statCard}>
           <div className={styles.statNumber}>{students.length}</div>
           <div className={styles.statLabel}>{groupBy ? "Students" : "Group Size"}</div>
@@ -54,11 +54,16 @@ export default function GradebookView({ students, items, groupBy = false, emptyM
         </div>
       </div>
 
+      <details className={styles.gradebookHint}>
+        <summary>How averages are calculated</summary>
+        <p>Averages include graded assignments only. Each assignment counts equally in a student’s average; each graded student counts equally in group and course averages.</p>
+      </details>
+
       <div className={styles.tabs}>
-        <button className={`${styles.tab} ${tab === "overview" ? styles.activeTab : ""}`} onClick={() => setTab("overview")}>
+        <button aria-pressed={tab === "overview"} className={`${styles.tab} ${tab === "overview" ? styles.activeTab : ""}`} onClick={() => setTab("overview")}>
           {groupBy ? "By Group" : "Students"}
         </button>
-        <button className={`${styles.tab} ${tab === "assignments" ? styles.activeTab : ""}`} onClick={() => setTab("assignments")}>
+        <button aria-pressed={tab === "assignments"} className={`${styles.tab} ${tab === "assignments" ? styles.activeTab : ""}`} onClick={() => setTab("assignments")}>
           By Assignment
         </button>
       </div>

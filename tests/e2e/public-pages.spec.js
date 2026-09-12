@@ -32,3 +32,28 @@ test.describe("public pages require no auth", () => {
     await expect(page.getByText("Publicly Visible Project")).toBeVisible();
   });
 });
+
+test("a project with no optional members or image does not crash the hall of fame", async ({ page }) => {
+  await clearAllTestTables();
+  await insertProject({ title: "Project without optional fields", members: null, image_url: null });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/hall_of_fame");
+  await expect(page.getByText("Project without optional fields")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+for (const path of ["/", "/resources", "/timeline", "/leaderboard", "/course_staff", "/hall_of_fame", "/signin"]) {
+  test(`public smoke: ${path} renders on desktop and mobile without script errors`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const response = await page.goto(path);
+    expect(response.status()).toBe(200);
+    await expect(page.locator("body")).not.toBeEmpty();
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    expect(errors).toEqual([]);
+  });
+}

@@ -138,7 +138,7 @@ describe("GET /api/action_items", () => {
     expect(json.map((i) => i.net_id)).toEqual(["stu1"]);
   });
 
-  it("scope=mine returns items assigned to or by me; scope=all returns everything", async () => {
+  it("scope=mine returns own assignments; full access remains available to course leads", async () => {
     await insertActionItem({ net_id: "stu1", assigned_by: "pm1", title: "a" });
     await insertActionItem({ net_id: "stu3", assigned_by: "pm2", title: "b" });
     asRole("pm", "pm1");
@@ -146,6 +146,7 @@ describe("GET /api/action_items", () => {
     const mine = await (await GET(makeRequest("http://localhost/api/action_items?scope=mine"))).json();
     expect(mine.map((i) => i.title)).toEqual(["a"]);
 
+    asRole("course_lead", "lead1");
     const all = await (await GET(makeRequest("http://localhost/api/action_items?scope=all"))).json();
     expect(all.length).toBe(2);
   });
@@ -471,5 +472,50 @@ describe("action items - sandbox mode", () => {
 
     const { data: stillReal } = await testClient().from(table("actionItems")).select("id").in("id", [a.id, b.id]);
     expect(stillReal).toHaveLength(2);
+  });
+});
+
+describe("grade integrity and completion permissions", () => {
+  beforeEach(async () => { await clearAllTestTables(); await seedGroup(); });
+  const patch = (item, body) => PATCH(makeRequest(`http://localhost/api/action_items/${item.id}`, { method: "PATCH", body }), { params: { id: item.id } });
+
+  it("a PM cannot reopen and erase another group's grade", async () => {
+    const item = await insertActionItem({ net_id: "stu3", assigned_by: "pm2", is_gradable: true, max_score: 100, is_done: true, grade: 90 });
+    asRole("pm", "pm1");
+    expect((await patch(item, { is_done: false })).status).toBe(403);
+    const { data } = await testClient().from(table("actionItems")).select("grade,is_done").eq("id", item.id).single();
+    expect(data).toEqual({ grade: 90, is_done: true });
+  });
+  it("rejects blank, boolean, and object grades without changing the score", async () => {
+    const item = await insertActionItem({ net_id: "stu1", assigned_by: "pm1", is_gradable: true, max_score: 100, is_done: true });
+    asRole("pm", "pm1");
+    for (const grade of ["", "  ", false, [], {}]) expect((await patch(item, { grade })).status).toBe(400);
+  });
+  it("validates grading against the resulting completion state and maximum", async () => {
+    const item = await insertActionItem({ net_id: "stu1", assigned_by: "pm1", is_gradable: true, max_score: 100, is_done: true, grade: 90 });
+    asRole("pm", "pm1");
+    for (const body of [{ is_done: false, grade: 80 }, { is_gradable: false, grade: 80 }, { max_score: 50, grade: 80 }, { max_score: 50 }]) {
+      expect((await patch(item, body)).status).toBe(400);
+    }
+    expect((await patch(item, { max_score: 50, grade: 40 })).status).toBe(200);
+  });
+  it("clears feedback with a cleared grade", async () => {
+    const item = await insertActionItem({ net_id: "stu1", assigned_by: "pm1", is_gradable: true, max_score: 100, is_done: true, grade: 90, grade_note: "Old feedback" });
+    asRole("pm", "pm1");
+    const res = await patch(item, { grade: null });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ grade: null, grade_note: null, graded_at: null });
+  });
+});
+
+describe("gradebook data scope", () => {
+  beforeEach(async () => { await clearAllTestTables(); await seedGroup(); });
+  it("PMs cannot retrieve other groups' grades with scope=all", async () => {
+    await insertActionItem({ net_id: "stu1", assigned_by: "pm1", title: "Own group" });
+    await insertActionItem({ net_id: "stu3", assigned_by: "pm2", title: "Other group" });
+    asRole("pm", "pm1");
+    const res = await GET(makeRequest("http://localhost/api/action_items?scope=all"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).map((i) => i.title)).toEqual(["Own group"]);
   });
 });

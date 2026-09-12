@@ -18,14 +18,13 @@ export default defineConfig({
   // the same way: run everything on one worker, one file at a time.
   fullyParallel: false,
   workers: 1,
+  timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
 
-  // Next dev-mode compiles each route on-demand on its first hit, which can
-  // take ~10s for a route nobody's visited yet this run - well past the
-  // default 5s assertion timeout. Bumped so whichever test happens to hit a
-  // given route first doesn't fail on cold-compile time alone.
+  // Allow for real test-database round trips. Routes are precompiled by the
+  // production build below, so workflow timing doesn't depend on test order.
   expect: {
     timeout: 10_000,
   },
@@ -35,20 +34,24 @@ export default defineConfig({
     trace: "on-first-retry",
   },
 
-  // Runs the real Next.js dev server, pinned to test_-prefixed Supabase
+  // Runs a production build/server, pinned to test_-prefixed Supabase
   // tables (USE_TEST_TABLES / NEXT_PUBLIC_USE_TEST_TABLES from .env.test.local)
   // on a dedicated port so it never collides with a developer's own `npm run dev`.
   webServer: {
-    command: `npm run dev -- -p ${PORT}`,
+    command: `npm run build && npm run start -- -p ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 180_000,
+    stdout: "pipe",
     env: {
       // process.env first so CI-injected secrets (no .env.test.local exists
       // there) always reach the spawned server; testEnv overrides for local
       // dev where the file is the source of truth.
       ...process.env,
       ...testEnv,
+      USE_TEST_TABLES: "true",
+      NEXT_PUBLIC_USE_TEST_TABLES: "true",
+      NEXT_PUBLIC_E2E: "true",
       PORT: String(PORT),
       NEXTAUTH_URL: BASE_URL,
       AUTH_URL: BASE_URL,

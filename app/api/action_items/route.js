@@ -17,14 +17,33 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  // scope=mine (default): items assigned to me OR assigned by me
-  // scope=all: full management scope (students/web_devs are always "mine" regardless)
+  // scope=mine: own/assigned items; scope=all: the caller's management scope.
   const scope = searchParams.get("scope") || "mine";
+
+  let visibleRecipients = null;
+  if (userRole === "pm" || userRole === "head_pm") {
+    let roster = supabaseServer.from(table("users")).select("net_id");
+    if (userRole === "pm") {
+      const { data: me, error } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (me?.group_number == null) visibleRecipients = [netID];
+      else roster = roster.eq("role", "STUDENT").eq("group_number", me.group_number);
+    } else {
+      roster = roster.in("role", ["PM", "STUDENT"]);
+    }
+    if (!visibleRecipients) {
+      const { data, error } = await roster;
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      visibleRecipients = [...new Set([netID, ...data.map((row) => row.net_id)])];
+    }
+  }
 
   let query = supabaseServer
     .from(table("actionItems"))
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (visibleRecipients) query = query.in("net_id", visibleRecipients);
 
   if (userRole === "student") {
     // Always own items only, regardless of scope
@@ -33,7 +52,6 @@ export async function GET(request) {
     // Items assigned to me OR that I assigned to others
     query = query.or(`net_id.eq.${netID},assigned_by.eq.${netID}`);
   }
-  // scope=all for management: no additional filter (returns everything)
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -58,11 +76,16 @@ export async function POST(request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const { title, description, due_date, target_type, target_net_ids, target_net_id, target_group, is_gradable, max_score } = body;
 
-  if (!title?.trim()) {
+  if (typeof title !== "string" || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  }
+
+  if (typeof target_type !== "string" || (description != null && typeof description !== "string") || (Array.isArray(target_net_ids) && target_net_ids.some((id) => typeof id !== "string")) || (target_net_id != null && typeof target_net_id !== "string")) {
+    return NextResponse.json({ error: "Invalid assignment target or description" }, { status: 400 });
   }
 
   let gradable = false;

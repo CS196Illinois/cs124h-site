@@ -27,6 +27,7 @@ export default function TimelinePage() {
             >
               {/* add &mode=WEEK at the end of the url to change to week view */}
               <iframe
+                title="CS 124H course calendar"
                 src="https://calendar.google.com/calendar/embed?src=cs124honors%40gmail.com&ctz=America%2FChicago"
                 style={{
                   border: "10",

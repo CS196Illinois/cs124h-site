@@ -8,7 +8,9 @@ export default function BlogPostCard({ project }) {
     <div className={styles.projectCard}>
       <div className={styles.cardContent}>
         <h3 className={styles.cardTitle}>{project.title}</h3>
-        <p className={styles.cardMembers}>By: {project.members.join(", ")}</p>
+        {Array.isArray(project.members) && project.members.length > 0 && (
+          <p className={styles.cardMembers}>By: {project.members.join(", ")}</p>
+        )}
         <p className={styles.cardDescription}>{project.description}</p>
         <a
           href={project.githubUrl}

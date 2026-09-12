@@ -10,16 +10,25 @@ export default function HeadPMGradebook() {
   const [students, setStudents] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [usersRes, itemsRes] = await Promise.all([
-      fetch("/api/users?role=STUDENT"),
-      fetch("/api/action_items?scope=all"),
-    ]);
-    if (usersRes.ok) setStudents(await usersRes.json());
-    if (itemsRes.ok) setItems(await itemsRes.json());
-    setLoading(false);
+    setError("");
+    try {
+      const [usersRes, itemsRes] = await Promise.all([
+        fetch("/api/users?role=STUDENT"), fetch("/api/action_items?scope=all"),
+      ]);
+      if (!usersRes.ok || !itemsRes.ok) throw new Error("Unable to load your gradebook. Please try again.");
+      const [nextStudents, nextItems] = await Promise.all([usersRes.json(), itemsRes.json()]);
+      if (!Array.isArray(nextStudents) || !Array.isArray(nextItems)) throw new Error("Invalid gradebook response. Please try again.");
+      setStudents(nextStudents);
+      setItems(nextItems);
+    } catch (err) {
+      setError(err.message || "Unable to load your gradebook. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -30,10 +39,15 @@ export default function HeadPMGradebook() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>Gradebook</h1>
-        <p>{students.length} student{students.length !== 1 ? "s" : ""} across all groups</p>
+        <p>{loading ? "Loading gradebook…" : error ? "Gradebook unavailable" : `${students.length} student${students.length !== 1 ? "s" : ""} across all groups`}</p>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className={styles.alertError} role="alert">
+          <p>{error}</p>
+          <button className={styles.btnSecondary} onClick={fetchData}>Retry</button>
+        </div>
+      ) : loading ? (
         <div className={styles.panel}>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>

@@ -74,7 +74,7 @@ test.describe("gradebooks", () => {
     await page.goto("/user/course_lead/gradebook");
 
     // By Group tab: both groups listed, collapsed by default.
-    await expect(page.getByText("Course Average")).toBeVisible();
+    await expect(page.getByText("Course Average", { exact: true })).toBeVisible();
     await expect(page.getByRole("row", { name: /Group 1/ })).toBeVisible();
     await expect(page.getByRole("row", { name: /Group 2/ })).toBeVisible();
     await expect(page.getByText("Student One")).not.toBeVisible();

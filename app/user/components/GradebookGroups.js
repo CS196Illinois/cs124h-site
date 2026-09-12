@@ -117,7 +117,13 @@ export default function GradebookGroups({ students, items, groupBy }) {
               return (
                 <Fragment key={g ?? "ungrouped"}>
                   <tr style={{ cursor: "pointer" }} onClick={() => toggle(g)}>
-                    <td style={{ width: "1.5rem", opacity: 0.5 }}>{isOpen ? "▼" : "▶"}</td>
+                    <td style={{ width: "1.5rem" }}>
+                    <button type="button" className={styles.groupToggle} aria-expanded={isOpen}
+                      aria-label={`${isOpen ? "Collapse" : "Expand"} ${g != null ? `Group ${g}` : "Ungrouped"}`}
+                      onClick={(e) => { e.stopPropagation(); toggle(g); }}>
+                      <span aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
+                    </button>
+                  </td>
                     <td style={{ fontWeight: 600 }}>{g != null ? `Group ${g}` : "Ungrouped"}</td>
                     <td style={{ color: "rgba(249,249,249,0.55)" }}>{groupStudents.length}</td>
                     <td style={{ fontWeight: 600 }}>{fmtPct(avg)}</td>

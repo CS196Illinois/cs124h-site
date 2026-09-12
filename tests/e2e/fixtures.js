@@ -23,6 +23,10 @@ const MAX_AGE = 30 * 24 * 60 * 60; // 30 days
  * pages that fetch /api/users/me etc. have something to find.
  */
 export async function loginAs(context, { netID, role, sub } = {}) {
+  // Stop the previous user's page before replacing its session cookie.
+  // An in-flight /api/auth/session response can otherwise overwrite the
+  // newly minted cookie and silently switch a multi-role test back.
+  await Promise.all(context.pages().map((page) => page.goto("about:blank")));
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) throw new Error("NEXTAUTH_SECRET missing from .env.test.local");
 

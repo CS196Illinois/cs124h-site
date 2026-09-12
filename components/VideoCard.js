@@ -6,19 +6,19 @@ import { VideoIcon } from "@phosphor-icons/react";
 export default function VideoCard({ project }) {
   return (
     <div className={styles.projectCard}>
-      <img
+      {project.imageUrl && <img
         src={project.imageUrl}
-        alt={`${project.title} Placeholder`}
+        alt={project.title}
         className={styles.cardImage}
-        // Basic fallback using placeholder service URL structure
         onError={(e) => {
-          e.target.onerror = null;
-          e.target.src = `https://placehold.co/600x400/cccccc/ffffff?text=Image+Error`;
+          e.currentTarget.hidden = true;
         }}
-      />
+      />}
       <div className={styles.cardContent}>
         <h3 className={styles.cardTitle}>{project.title}</h3>
-        <p className={styles.cardMembers}>By: {project.members.join(", ")}</p>
+        {Array.isArray(project.members) && project.members.length > 0 && (
+          <p className={styles.cardMembers}>By: {project.members.join(", ")}</p>
+        )}
         <p className={styles.cardDescription}>{project.description}</p>
         <a
           href={project.videoUrl}

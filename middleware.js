@@ -98,6 +98,12 @@ export default async function middleware(req) {
     return NextResponse.next();
   }
 
+  if (path.startsWith("/user/lead_web_dev")) {
+    const url = new URL("/unauthorized", req.url);
+    url.searchParams.set("callbackUrl", path);
+    return NextResponse.redirect(url);
+  }
+
   if (path.startsWith("/user/student") && role !== "student") {
     const url = new URL("/unauthorized", req.url);
     url.searchParams.set("callbackUrl", path);

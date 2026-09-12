@@ -40,10 +40,14 @@ test.describe("action items: assign, complete, and grade", () => {
     await gradeBatchBtn.click();
     await expect(page.getByRole("heading", { name: "Grade Batch" })).toBeVisible();
     await page.locator('input[type="number"]').first().fill("95");
+    await page.getByRole("button", { name: "Apply to All", exact: true }).click();
     await page.getByRole("button", { name: "Save Grades" }).click();
 
     // Batch modal closes and the item no longer needs grading
     await expect(page.getByRole("heading", { name: "Grade Batch" })).not.toBeVisible();
+    const { data: savedGrades } = await testClient().from(table("actionItems")).select("net_id,grade").eq("title", "Sprint Review");
+    expect(savedGrades.find((item) => item.net_id === "e2e-stu1").grade).toBe(95);
+    expect(savedGrades.find((item) => item.net_id === "e2e-stu2").grade).toBeNull();
   });
 
   test("pm assigns to a specific student, edits the item, then deletes it", async ({ page, loginAs }) => {
@@ -359,4 +363,3 @@ test.describe("regression: People picker checkbox sizing", () => {
     expect(box.height).toBeLessThan(30);
   });
 });
-

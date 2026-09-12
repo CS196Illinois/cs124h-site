@@ -8,6 +8,7 @@ import { deriveCode } from "../code/route";
 import { isSandboxRole, getSandboxMode, getEffectiveRow, mergeSandboxRows, sandboxWrite } from "../../../../../lib/sandbox";
 import { getManagedEvent } from "../../../../../lib/events";
 import { syncEventAttendance } from "../../../../../lib/eventAttendanceSync";
+import { audienceMatches } from "../../../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -60,11 +61,15 @@ export async function POST(request, { params }) {
   const sandboxed = isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off";
 
   // Verify event exists and check-in is currently open
-  const { data: realEvent } = await supabaseServer
+  let { data: realEvent, error: eventError } = await supabaseServer
     .from(table("events"))
-    .select("id, title, check_in_open")
+    .select("id, title, check_in_open, audience_type, audience_values")
     .eq("id", id)
     .maybeSingle();
+  if (eventError && (eventError.code === "PGRST204" || eventError.code === "42703")) {
+    ({ data: realEvent } = await supabaseServer.from(table("events")).select("id, title, check_in_open").eq("id", id).maybeSingle());
+    if (realEvent) realEvent = { ...realEvent, audience_type: "all", audience_values: [] };
+  }
   const event = sandboxed ? await getEffectiveRow(netID, "events", id, realEvent) : realEvent;
 
   if (!event) {
@@ -72,6 +77,10 @@ export async function POST(request, { params }) {
   }
   if (!event.check_in_open) {
     return NextResponse.json({ error: "Check-in is not open for this event." }, { status: 400 });
+  }
+  const { data: viewer } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
+  if (!audienceMatches(event, { netID, role: userRole, groupNumber: viewer?.group_number ?? null })) {
+    return NextResponse.json({ error: "You are not included in this event's audience." }, { status: 403 });
   }
 
   // Validate against current window and previous window (grace period for slow typers)

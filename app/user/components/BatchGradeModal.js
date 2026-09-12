@@ -18,7 +18,7 @@ export default function BatchGradeModal({ batchId, items, peopleByNetId, onClose
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const maxScore = items[0]?.max_score ?? null;
+  const maxScore = items.every((i) => i.max_score === items[0]?.max_score) ? items[0]?.max_score ?? null : null;
   const title = items[0]?.title ?? "Batch";
   const doneItems = items.filter((i) => i.is_done);
   const gradedCount = items.filter((i) => i.grade != null).length;
@@ -41,35 +41,45 @@ export default function BatchGradeModal({ batchId, items, peopleByNetId, onClose
       if (raw === "" || raw == null) { entries.push({ id: item.id, grade: null }); continue; }
       const g = Number(raw);
       if (!Number.isFinite(g) || g < 0) { setError(`Invalid grade for ${item.net_id}.`); return; }
-      if (maxScore != null && g > maxScore) { setError(`Grade for ${item.net_id} cannot exceed ${maxScore}.`); return; }
+      if (item.max_score != null && g > item.max_score) { setError(`Grade for ${item.net_id} cannot exceed ${item.max_score}.`); return; }
       entries.push({ id: item.id, grade: g, grade_note: note.trim() || undefined });
     }
     if (entries.length === 0) { setError("No completed items to grade yet."); return; }
 
     setLoading(true);
-    const res = await fetch(`/api/action_items/batch/${batchId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ grades: entries }),
-    });
-    const json = await res.json();
-    if (!res.ok) { setError(json.error || "Failed to save grades."); setLoading(false); return; }
-    onSaved();
-    onClose();
+    try {
+      const res = await fetch(`/api/action_items/batch/${batchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grades: entries }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || "Failed to save grades."); setLoading(false); return; }
+      onSaved();
+      if (json.skipped?.length) {
+        setError(`${json.updated} grade(s) saved. ${json.skipped.length} skipped: ${json.skipped.map((s) => s.reason).join("; ")}`);
+        return;
+      }
+      onClose();
+    } catch {
+      setError("Unable to save grades. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Modal onClose={onClose} maxWidth={640}>
+    <Modal onClose={() => { if (!loading) onClose(); }} maxWidth={640}>
       <h2>Grade Batch</h2>
       <p style={{ color: "rgba(249,249,249,0.45)", fontSize: "0.82rem", fontFamily: "Inter, sans-serif", marginTop: "-0.6rem", marginBottom: "1.1rem" }}>
         {title} · {items.length} people · {doneItems.length} completed · {gradedCount} graded
       </p>
-      {error && <div className={styles.alertError}>{error}</div>}
+      {error && <div className={styles.alertError} role="alert">{error}</div>}
 
       <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", marginBottom: "1rem" }}>
         <div className={styles.formGroup} style={{ marginBottom: 0, flex: 1 }}>
-          <label>Apply one score to everyone completed{maxScore != null ? ` (out of ${maxScore})` : ""}</label>
-          <input type="number" min="0" max={maxScore ?? undefined} value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} placeholder="e.g. 92" />
+          <label htmlFor="batch-score">Apply one score to everyone completed{maxScore != null ? ` (out of ${maxScore})` : ""}</label>
+          <input id="batch-score" step="any" type="number" min="0" max={maxScore ?? undefined} value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} placeholder="e.g. 92" />
         </div>
         <button type="button" className={styles.btnSecondary} onClick={applyToAll} disabled={doneItems.length === 0}>
           Apply to All
@@ -95,9 +105,11 @@ export default function BatchGradeModal({ batchId, items, peopleByNetId, onClose
                   <td><StatusBadge item={item} /></td>
                   <td>
                     <input
+                      aria-label={`Grade for ${item.net_id}${item.max_score != null ? ` out of ${item.max_score}` : ""}`}
+                      step="any"
                       type="number"
                       min="0"
-                      max={maxScore ?? undefined}
+                      max={item.max_score ?? undefined}
                       value={grades[item.id]}
                       disabled={!item.is_done}
                       onChange={(e) => setGrades((g) => ({ ...g, [item.id]: e.target.value }))}
@@ -112,8 +124,8 @@ export default function BatchGradeModal({ batchId, items, peopleByNetId, onClose
       </div>
 
       <div className={styles.formGroup}>
-        <label>Feedback for everyone graded in this save (optional)</label>
-        <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Applies to every grade saved below…" />
+        <label htmlFor="batch-feedback">Feedback for everyone graded in this save (optional)</label>
+        <textarea id="batch-feedback" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Applies to every grade saved below…" />
       </div>
 
       <div className={styles.modalActions}>

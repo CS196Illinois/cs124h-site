@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS test_events (
   sheet_synced_at       timestamptz,
   sheet_sync_error      text,
   sheet_sync_version    integer NOT NULL DEFAULT 0
+  ,audience_type        text NOT NULL DEFAULT 'all'
+  ,audience_values      jsonb NOT NULL DEFAULT '[]'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS test_event_checkins (

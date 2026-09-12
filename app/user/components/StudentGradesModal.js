@@ -5,7 +5,7 @@ import Modal from "./Modal";
 import StatusBadge from "./StatusBadge";
 import { averagePct, itemPct } from "../../../lib/grading";
 import { downloadCsv } from "../../../lib/csvExport";
-import { formatDueDate } from "../../../lib/dateFormat";
+import { formatDueDate, localTodayISO } from "../../../lib/dateFormat";
 
 /**
  * Full grade history for one student - every gradable action item they've
@@ -22,11 +22,12 @@ export default function StudentGradesModal({ student, items, onClose }) {
 
   const exportCsv = () => {
     downloadCsv(
-      `${student.net_id}-grades-${new Date().toISOString().slice(0, 10)}.csv`,
+      `${student.net_id}-grades-${localTodayISO()}.csv`,
       [
         { key: "title", label: "Assignment" },
         { key: "due_date", label: "Due Date", value: (i) => (i.due_date ? formatDueDate(i.due_date) : "") },
         { key: "grade", label: "Grade", value: (i) => i.grade ?? "" },
+        { key: "grade_note", label: "Feedback" },
         { key: "max_score", label: "Max Score", value: (i) => i.max_score ?? "" },
         { key: "percent", label: "Percent", value: (i) => { const p = itemPct(i); return p != null ? p.toFixed(1) : ""; } },
         { key: "status", label: "Status", value: (i) => (i.grade != null ? "Graded" : i.is_done ? "Ready to Grade" : "Pending") },
@@ -62,7 +63,7 @@ export default function StudentGradesModal({ student, items, onClose }) {
         <div className={styles.tableWrapper}>
           <table className={styles.table} style={{ fontSize: "0.85rem" }}>
             <thead>
-              <tr><th>Assignment</th><th>Due</th><th>Status</th><th>%</th></tr>
+              <tr><th>Assignment</th><th>Due</th><th>Status</th><th>%</th><th>Feedback</th></tr>
             </thead>
             <tbody>
               {mine.map((i) => {
@@ -73,6 +74,7 @@ export default function StudentGradesModal({ student, items, onClose }) {
                     <td style={{ color: "rgba(249,249,249,0.55)" }}>{i.due_date ? formatDueDate(i.due_date) : "—"}</td>
                     <td><StatusBadge item={i} /></td>
                     <td style={{ fontWeight: 600 }}>{pct != null ? `${pct.toFixed(1)}%` : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                    <td style={{ whiteSpace: "pre-wrap", minWidth: 140 }}>{i.grade_note || "—"}</td>
                   </tr>
                 );
               })}

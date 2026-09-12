@@ -9,7 +9,7 @@ export default function PMLayout({ children }) {
   return (
     <div style={{ display: "flex", width: "100%", height: "calc(100vh - var(--navbar-height))", overflow: "hidden" }}>
       <PMSidebar />
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
         {children}
       </div>
     </div>

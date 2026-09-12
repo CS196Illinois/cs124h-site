@@ -5,7 +5,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { supabaseServer } from "../../../lib/supabaseServer";
 import { table } from "../../../lib/tables";
 import { isSandboxRole, getSandboxMode, mergeSandboxRows, sandboxWrite } from "../../../lib/sandbox";
-import { canAdminEvents } from "../../../lib/events";
+import { canAdminEvents, EVENT_AUDIENCE_TYPES, audienceMatches } from "../../../lib/events";
 
 const STAFF_ROLES = ["course_lead", "lead_web_dev", "head_pm", "pm", "web_dev"];
 
@@ -24,11 +24,15 @@ export async function GET(request) {
   // leads / lead web dev see all, so an orphaned event stays reachable).
   const scope = new URL(request.url).searchParams.get("scope") || "mine";
 
-  const { data, error } = await supabaseServer
+  let { data, error } = await supabaseServer
     .from(table("events"))
-    .select("id, title, description, location, presenter, start_time, check_in_open, check_in_opened_at, created_by, created_at, point_value, sheet_synced_at, sheet_sync_error")
+    .select("id, title, description, location, presenter, start_time, check_in_open, check_in_opened_at, created_by, created_at, point_value, sheet_synced_at, sheet_sync_error, audience_type, audience_values")
     .order("created_at", { ascending: false });
 
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    ({ data, error } = await supabaseServer.from(table("events")).select("id, title, description, location, presenter, start_time, check_in_open, check_in_opened_at, created_by, created_at, point_value, sheet_synced_at, sheet_sync_error").order("created_at", { ascending: false }));
+    if (data) data = data.map((row) => ({ ...row, audience_type: "all", audience_values: [] }));
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   let rows = data;
@@ -37,6 +41,8 @@ export async function GET(request) {
     rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
+  const { data: viewer } = await supabaseServer.from(table("users")).select("group_number").eq("net_id", netID).maybeSingle();
+  const viewerGroup = viewer?.group_number ?? null;
   if (scope === "checkin") {
     const { data: mine } = await supabaseServer
       .from(table("eventCheckins")).select("event_id").eq("net_id", netID);
@@ -45,9 +51,9 @@ export async function GET(request) {
       const merged = await mergeSandboxRows(netID, "eventCheckins", mine ?? [], (r) => r.net_id === netID);
       attendedIds = new Set(merged.map((r) => r.event_id));
     }
-    rows = rows.filter((e) => e.check_in_open || attendedIds.has(e.id));
+    rows = rows.filter((e) => audienceMatches(e, { netID, role: userRole, groupNumber: viewerGroup }) && (e.check_in_open || attendedIds.has(e.id)));
   } else if (!canAdminEvents(userRole)) {
-    rows = rows.filter((e) => e.created_by === netID);
+    rows = rows.filter((e) => e.created_by === netID || (e.audience_type !== "all" && audienceMatches(e, { netID, role: userRole, groupNumber: viewerGroup })));
   }
 
   return NextResponse.json(rows);
@@ -62,11 +68,36 @@ export async function POST(request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { title, description, location, presenter, start_time, end_time } = body;
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  const { title, description, location, presenter, start_time, end_time, audience_type = "all", audience_values = [] } = body;
 
-  if (!title?.trim()) {
+  if (typeof title !== "string" || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  }
+  if (!EVENT_AUDIENCE_TYPES.includes(audience_type) || !Array.isArray(audience_values) || audience_values.some((v) => typeof v !== "string" && typeof v !== "number")) {
+    return NextResponse.json({ error: "Invalid event audience" }, { status: 400 });
+  }
+  const cleanAudience = [...new Set(audience_values.map(String).map((v) => v.trim()).filter(Boolean))];
+  if (audience_type !== "all" && cleanAudience.length === 0) return NextResponse.json({ error: "Select at least one audience member" }, { status: 400 });
+  if (audience_type === "roles" && cleanAudience.some((v) => !["LEAD", "LEAD_WEB", "HEAD", "PM", "WEB", "STUDENT"].includes(v.toUpperCase()))) return NextResponse.json({ error: "Invalid audience role" }, { status: 400 });
+  if (audience_type === "roles") cleanAudience.forEach((value, index) => { cleanAudience[index] = value.toUpperCase(); });
+  if (audience_type === "people" || audience_type === "groups") {
+    const { data: roster } = await supabaseServer.from(table("users")).select("net_id, group_number");
+    const valid = audience_type === "people"
+      ? new Set((roster ?? []).map((person) => person.net_id))
+      : new Set((roster ?? []).filter((person) => person.group_number != null).map((person) => String(person.group_number)));
+    if (cleanAudience.some((value) => !valid.has(value))) return NextResponse.json({ error: "One or more audience selections are not in the roster" }, { status: 400 });
+  }
+
+  if ([description, location, presenter].some((value) => value != null && typeof value !== "string")) {
+    return NextResponse.json({ error: "Description, location and presenter must be text" }, { status: 400 });
+  }
+  if ([start_time, end_time].some((value) => value != null && value !== "" && (typeof value !== "string" || !Number.isFinite(Date.parse(value))))) {
+    return NextResponse.json({ error: "Invalid event date" }, { status: 400 });
+  }
+  if (start_time && end_time && Date.parse(end_time) <= Date.parse(start_time)) {
+    return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
   }
 
   // end_time is required by the DB - default to 1 hour after start_time, or now + 1h
@@ -84,6 +115,8 @@ export async function POST(request) {
     start_time: start_time || null,
     end_time: resolvedEndTime,
     created_by: netID,
+    audience_type,
+    audience_values: audience_type === "all" ? [] : cleanAudience,
   };
 
   if (isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off") {
@@ -98,17 +131,22 @@ export async function POST(request) {
       qr_code_secret: null,
       join_link: null,
       ...row,
+      audience_type,
+      audience_values: audience_type === "all" ? [] : cleanAudience,
     };
     await sandboxWrite(netID, "events", "insert", fullRow.id, fullRow);
     return NextResponse.json(fullRow, { status: 201 });
   }
 
-  const { data, error } = await supabaseServer
+  let { data, error } = await supabaseServer
     .from(table("events"))
     .insert(row)
     .select()
     .single();
 
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    ({ data, error } = await supabaseServer.from(table("events")).insert({ ...row, audience_type: undefined, audience_values: undefined }).select().single());
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

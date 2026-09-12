@@ -11,21 +11,32 @@ export default function PMGradebook() {
   const [students, setStudents] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [meRes, itemsRes] = await Promise.all([
-      fetch("/api/users/me"),
-      fetch("/api/action_items?scope=all"),
-    ]);
-    let me = null;
-    if (meRes.ok) { me = await meRes.json(); setMyRecord(me); }
-    if (itemsRes.ok) setItems(await itemsRes.json());
-    if (me?.group_number) {
-      const stuRes = await fetch(`/api/users?role=STUDENT&group=${me.group_number}`);
-      if (stuRes.ok) setStudents(await stuRes.json());
+    setError("");
+    try {
+      const [meRes, itemsRes] = await Promise.all([
+        fetch("/api/users/me"), fetch("/api/action_items?scope=all"),
+      ]);
+      if (!meRes.ok || !itemsRes.ok) throw new Error("Unable to load your gradebook. Please try again.");
+      const [me, nextItems] = await Promise.all([meRes.json(), itemsRes.json()]);
+      let nextStudents = [];
+      if (me?.group_number != null) {
+        const res = await fetch(`/api/users?role=STUDENT&group=${encodeURIComponent(me.group_number)}`);
+        if (!res.ok) throw new Error("Unable to load students. Please try again.");
+        nextStudents = await res.json();
+      }
+      if (!Array.isArray(nextItems) || !Array.isArray(nextStudents)) throw new Error("Invalid gradebook response. Please try again.");
+      setMyRecord(me);
+      setStudents(nextStudents);
+      setItems(nextItems);
+    } catch (err) {
+      setError(err.message || "Unable to load your gradebook. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -36,10 +47,15 @@ export default function PMGradebook() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>Gradebook</h1>
-        <p>{myRecord?.group_number ? `Group ${myRecord.group_number} · ${students.length} student${students.length !== 1 ? "s" : ""}` : "No group assigned"}</p>
+        <p>{loading ? "Loading gradebook…" : error ? "Gradebook unavailable" : myRecord?.group_number != null ? `Group ${myRecord.group_number} · ${students.length} student${students.length !== 1 ? "s" : ""}` : "No group assigned"}</p>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className={styles.alertError} role="alert">
+          <p>{error}</p>
+          <button className={styles.btnSecondary} onClick={fetchData}>Retry</button>
+        </div>
+      ) : loading ? (
         <div className={styles.panel}>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
@@ -56,7 +72,7 @@ export default function PMGradebook() {
             </table>
           </div>
         </div>
-      ) : !myRecord?.group_number ? (
+      ) : myRecord?.group_number == null ? (
         <div className={styles.panel}>
           <div className={styles.emptyState}>
             <span className={styles.emptyIcon}>📋</span>

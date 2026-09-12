@@ -21,7 +21,8 @@ export async function PATCH(request, { params }) {
   }
 
   const { batchId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const entries = Array.isArray(body.grades) ? body.grades : [];
   if (entries.length === 0) {
     return NextResponse.json({ error: "No grades provided" }, { status: 400 });
@@ -50,7 +51,11 @@ export async function PATCH(request, { params }) {
   const updates = [];
   const skipped = [];
 
+  const seen = new Set();
   for (const entry of entries) {
+    if (!entry || typeof entry.id !== "string" || seen.has(entry.id)) return NextResponse.json({ error: "Each grade must identify a unique item" }, { status: 400 });
+    seen.add(entry.id);
+    if (entry.grade_note != null && typeof entry.grade_note !== "string") return NextResponse.json({ error: "Feedback must be text" }, { status: 400 });
     const item = itemsById[entry.id];
     if (!item) { skipped.push({ id: entry.id, reason: "Not part of this batch" }); continue; }
     if (!item.is_gradable) { skipped.push({ id: entry.id, reason: "Not gradable" }); continue; }
@@ -62,12 +67,12 @@ export async function PATCH(request, { params }) {
     // every NOT NULL column without a default (net_id, title) must be present
     // in the payload even though we only ever intend to hit existing rows.
     if (entry.grade === null) {
-      updates.push({ id: entry.id, net_id: item.net_id, title: item.title, grade: null, graded_by: null, graded_at: null });
+      updates.push({ id: entry.id, net_id: item.net_id, title: item.title, grade: null, grade_note: null, graded_by: null, graded_at: null });
       continue;
     }
 
     const g = Number(entry.grade);
-    if (!Number.isFinite(g) || g < 0) { skipped.push({ id: entry.id, reason: "Invalid grade" }); continue; }
+    if (!["number", "string"].includes(typeof entry.grade) || String(entry.grade).trim() === "" || !Number.isFinite(g) || g < 0) { skipped.push({ id: entry.id, reason: "Invalid grade" }); continue; }
     if (item.max_score != null && g > item.max_score) { skipped.push({ id: entry.id, reason: `Exceeds ${item.max_score}` }); continue; }
 
     updates.push({
@@ -77,7 +82,7 @@ export async function PATCH(request, { params }) {
       grade: g,
       graded_by: netID,
       graded_at: new Date().toISOString(),
-      ...(entry.grade_note !== undefined && { grade_note: entry.grade_note?.trim() || null }),
+      grade_note: entry.grade_note !== undefined ? entry.grade_note?.trim() || null : item.grade_note,
     });
   }
 
@@ -91,9 +96,22 @@ export async function PATCH(request, { params }) {
     await Promise.all(mergedRows.map((row) => sandboxWrite(netID, "actionItems", "update", row.id, row)));
     data = mergedRows;
   } else {
-    const { data: upserted, error } = await supabaseServer.from(table("actionItems")).upsert(updates).select();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    data = upserted;
+    // Update existing rows only: an upsert could resurrect an item deleted
+    // while this request was validating it. Check the grading state again
+    // at write time so a concurrent reopen cannot acquire a stale grade.
+    data = [];
+    for (const update of updates) {
+      const item = itemsById[update.id];
+      const { id, net_id, title, ...gradeFields } = update;
+      let query = supabaseServer.from(table("actionItems")).update(gradeFields)
+        .eq("id", id).eq("batch_id", batchId).eq("assigned_by", netID)
+        .eq("is_done", true).eq("is_gradable", true);
+      query = item.max_score == null ? query.is("max_score", null) : query.eq("max_score", item.max_score);
+      const { data: saved, error } = await query.select().maybeSingle();
+      if (error) skipped.push({ id, reason: "Could not save this grade; retry" });
+      else if (!saved) skipped.push({ id, reason: "Item changed while saving; reload and retry" });
+      else data.push(saved);
+    }
   }
 
   return NextResponse.json({ success: true, updated: data.length, skipped, data });

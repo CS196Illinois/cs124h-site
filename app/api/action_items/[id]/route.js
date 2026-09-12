@@ -15,8 +15,15 @@ export async function PATCH(request, { params }) {
   }
 
   const { id } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (["is_done", "is_gradable"].some((key) => body[key] !== undefined && typeof body[key] !== "boolean")) {
+    return NextResponse.json({ error: "Completion and gradable flags must be booleans" }, { status: 400 });
+  }
+  if (body.grade_note != null && typeof body.grade_note !== "string") return NextResponse.json({ error: "Feedback must be text" }, { status: 400 });
+  if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) return NextResponse.json({ error: "Title is required" }, { status: 400 });
   const updates = {};
+  let gradingSnapshot = null;
 
   const sandboxed = isSandboxRole(userRole) && (await getSandboxMode(netID)) !== "off";
   // Fetched once, up front, for sandboxed callers - used both for the grade
@@ -29,11 +36,18 @@ export async function PATCH(request, { params }) {
   }
 
   if (body.is_done !== undefined) {
+    if (userRole !== "student" && !sandboxed) {
+      const { data: current } = await supabaseServer.from(table("actionItems")).select("net_id").eq("id", id).maybeSingle();
+      if (current?.net_id !== netID && !(await canManageItem(userRole, netID, id))) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      }
+    }
     updates.is_done = body.is_done;
     updates.completion_date = body.is_done ? new Date().toISOString() : null;
     if (!body.is_done) {
       // Reopening resets any existing grade - the work is changing, so it needs a re-review.
       updates.grade = null;
+      updates.grade_note = null;
       updates.graded_by = null;
       updates.graded_at = null;
     }
@@ -63,12 +77,16 @@ export async function PATCH(request, { params }) {
       if (!body.is_gradable) {
         updates.max_score = null;
         updates.grade = null;
+        updates.grade_note = null;
         updates.graded_by = null;
         updates.graded_at = null;
       }
     }
     if (body.max_score !== undefined) {
       const parsed = Number(body.max_score);
+      if (body.is_gradable !== false && (!Number.isFinite(parsed) || parsed <= 0)) {
+        return NextResponse.json({ error: "Maximum score must be a positive number" }, { status: 400 });
+      }
       updates.max_score = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     }
   }
@@ -82,10 +100,11 @@ export async function PATCH(request, { params }) {
       ? effectiveItem
       : (await supabaseServer.from(table("actionItems")).select("is_gradable, is_done, assigned_by, max_score").eq("id", id).maybeSingle()).data;
     if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (!item.is_gradable) {
+    gradingSnapshot = item;
+    if (!(updates.is_gradable ?? item.is_gradable)) {
       return NextResponse.json({ error: "This item is not gradable" }, { status: 400 });
     }
-    if (!item.is_done) {
+    if (!(updates.is_done ?? item.is_done)) {
       return NextResponse.json({ error: "Item must be completed before it can be graded" }, { status: 400 });
     }
     if (item.assigned_by !== netID) {
@@ -94,22 +113,33 @@ export async function PATCH(request, { params }) {
 
     if (body.grade === null) {
       updates.grade = null;
+      updates.grade_note = null;
       updates.graded_by = null;
       updates.graded_at = null;
     } else {
       const g = Number(body.grade);
-      if (!Number.isFinite(g) || g < 0) {
+      if (!["number", "string"].includes(typeof body.grade) || String(body.grade).trim() === "" || !Number.isFinite(g) || g < 0) {
         return NextResponse.json({ error: "Grade must be a non-negative number" }, { status: 400 });
       }
-      if (item.max_score != null && g > item.max_score) {
-        return NextResponse.json({ error: `Grade cannot exceed ${item.max_score}` }, { status: 400 });
+      const maxScore = updates.max_score !== undefined ? updates.max_score : item.max_score;
+      if (maxScore != null && g > maxScore) {
+        return NextResponse.json({ error: `Grade cannot exceed ${maxScore}` }, { status: 400 });
       }
       updates.grade = g;
       updates.graded_by = netID;
       updates.graded_at = new Date().toISOString();
     }
-    if (body.grade_note !== undefined) updates.grade_note = body.grade_note?.trim() || null;
+    if (body.grade !== null && body.grade_note !== undefined) updates.grade_note = body.grade_note?.trim() || null;
   }
+
+  if (body.max_score !== undefined && body.is_gradable !== false) {
+    const current = sandboxed ? effectiveItem : (await supabaseServer.from(table("actionItems")).select("grade, is_gradable").eq("id", id).maybeSingle()).data;
+    const nextGrade = updates.grade !== undefined ? updates.grade : current?.grade;
+    if (updates.max_score != null && nextGrade != null && nextGrade > updates.max_score) {
+      return NextResponse.json({ error: "Maximum score cannot be lower than the existing grade" }, { status: 400 });
+    }
+  }
+  if (updates.is_gradable === false) updates.max_score = null;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
@@ -129,8 +159,13 @@ export async function PATCH(request, { params }) {
     query = query.eq("net_id", netID);
   }
 
-  const { data, error } = await query.select().single();
+  if (gradingSnapshot) {
+    query = query.eq("assigned_by", netID).eq("is_done", gradingSnapshot.is_done).eq("is_gradable", gradingSnapshot.is_gradable);
+    query = gradingSnapshot.max_score == null ? query.is("max_score", null) : query.eq("max_score", gradingSnapshot.max_score);
+  }
+  const { data, error } = await query.select().maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Item changed or is no longer available; reload and retry" }, { status: 409 });
   return NextResponse.json(data);
 }
 

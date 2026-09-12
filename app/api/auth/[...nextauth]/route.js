@@ -48,8 +48,10 @@ export const authOptions = {
 
   callbacks: {
     async redirect({ url, baseUrl }) {
-      if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        const target = new URL(url, baseUrl);
+        if (target.origin === new URL(baseUrl).origin) return target.href;
+      } catch {}
       return baseUrl;
     },
 
@@ -165,13 +167,15 @@ async function claimRosterEntry(netID, sub, clogonName = "") {
   // Atomic bind - only updates rows where sub is still NULL
   // Also write the CILogon name if the roster entry has none yet
   const patch = { sub, ...(clogonName && !unclaimed.name ? { name: clogonName } : {}) };
-  const { error } = await supabaseServer
+  const { data: claimed, error } = await supabaseServer
     .from(table("users"))
     .update(patch)
     .eq("net_id", netID)
-    .is("sub", null);
+    .is("sub", null)
+    .select("role, net_id, name")
+    .maybeSingle();
 
-  return error ? null : unclaimed;
+  return error ? null : claimed;
 }
 
 /**
