@@ -385,18 +385,19 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
             {canManageQuestions && (
               <div className={styles.formGroup}>
                 <label>Understanding Check Questions (choose any, optional)</label>
-                {questionBank.length > 0 && <div style={{ marginBottom: "0.75rem", display: "grid", gap: "0.4rem" }}>
-                  <small style={{ color: "rgba(249,249,249,0.55)" }}>Shared question bank</small>
-                  {questionBank.map((item) => <label key={item.id} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontWeight: 400 }}>
+                <div className={styles.questionBank}>
+                {questionBank.length > 0 && <div>
+                  <small className={styles.questionBankHint}>Shared question bank</small>
+                  {questionBank.map((item) => <label key={item.id} className={styles.questionBankRow}>
                     <input type="checkbox" checked={form.check_questions.includes(item.question)} disabled={!canManage && form.check_questions.includes(item.question)} onChange={() => toggleBankQuestion(item.question)} />
-                    <span style={{ flex: 1 }}>{item.question}</span>
+                    <span>{item.question}</span>
                     {canManageQuestionBank && <span style={{ display: "inline-flex", gap: "0.25rem" }}><button type="button" className={styles.btnSmall} onClick={() => editBankQuestion(item)}>Edit</button><button type="button" className={styles.btnDanger} onClick={() => deleteBankQuestion(item)}>Remove</button></span>}
                   </label>)}
                 </div>}
-                {canManageQuestionBank && <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.75rem" }}><input value={newBankQuestion} onChange={(e) => setNewBankQuestion(e.target.value)} placeholder="Add a shared question" /><button type="button" className={styles.btnSecondary} onClick={addBankQuestion}>Add to bank</button></div>}
+                {canManageQuestionBank && <div className={styles.questionBankAdd}><input value={newBankQuestion} onChange={(e) => setNewBankQuestion(e.target.value)} placeholder="Add a shared question" /><button type="button" className={styles.btnSecondary} onClick={addBankQuestion}>Add to bank</button></div>}
                 {form.check_questions.length === 0 ? (
                   <>
-                    <div style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>No questions selected. Choose from the bank or add a custom question below.</div>
+                    <div className={styles.questionBankEmpty}>No questions selected. Choose from the bank or add a custom question below.</div>
                     <button
                       type="button"
                       className={styles.btnSecondary}
@@ -451,6 +452,7 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
                     </div>
                   </>
                 )}
+                </div>
               </div>
             )}
             <div className={styles.modalActions}>
