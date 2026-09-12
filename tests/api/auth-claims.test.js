@@ -14,3 +14,17 @@ it("only one identity can claim an unbound roster entry during concurrent sign-i
   const { data } = await testClient().from(table("users")).select("sub").eq("net_id", "claim-student").single();
   expect(results.find((token) => token.role === "student").sub).toBe(data.sub);
 });
+
+it("allows a returning user whose provider response omits email", async () => {
+  await insertUser({ net_id: "known-student", role: "STUDENT", sub: "known-sub" });
+  const token = await authOptions.callbacks.jwt({ token: {}, user: { id: "known-sub", name: "Known Student" } });
+  expect(token.role).toBe("student");
+  expect(token.netID).toBe("known-student");
+});
+
+it("accepts CILogon's alternate preferred username identity for first login", async () => {
+  await insertUser({ net_id: "alternate-student", role: "STUDENT", sub: null });
+  const token = await authOptions.callbacks.jwt({ token: {}, user: { id: "alternate-sub", preferred_username: "alternate-student@illinois.edu", name: "Alternate Student" } });
+  expect(token.role).toBe("student");
+  expect(token.netID).toBe("alternate-student");
+});

@@ -39,13 +39,29 @@ export const authOptions = {
             `${profile.given_name || ""} ${profile.family_name || ""}`.trim() ||
             profile.name ||
             profile.sub,
-          email: profile.email,
+          // CILogon can omit `email` for an existing browser session while
+          // still returning one of these equivalent verified identifiers.
+          email: profile.email || profile.preferred_username || profile.eppn,
         };
       },
     },
   ],
 
   pages: { signIn: "/signin" },
+
+  events: {
+    async error(message) {
+      // Keep provider errors in the server log without writing tokens or
+      // authorization codes. This makes login loops diagnosable in hosting
+      // logs instead of looking like a generic redirect failure.
+      console.error("NextAuth authentication error", {
+        name: message?.name,
+        code: message?.code,
+        type: message?.type,
+        message: message?.message,
+      });
+    },
+  },
 
   callbacks: {
     async redirect({ url, baseUrl }) {
@@ -61,10 +77,7 @@ export const authOptions = {
       if (user) {
         // Both values come from CILogon's signed ID token - verified server-side
         // by Next-Auth's PKCE + state checks. The client cannot forge either.
-        const netID = user.email.split("@")[0].toLowerCase();
         const sub = user.id; // CILogon's immutable OIDC subject identifier
-
-        token.netID = netID;
         token.sub = sub;
 
         const clogonName = user.name || "";
@@ -78,6 +91,19 @@ export const authOptions = {
         const isNewUser = !record;
 
         if (!record) {
+          const netID = getNetIDFromIdentity(user);
+          if (!netID) {
+            console.error("CILogon sign-in did not provide a usable Illinois NetID", {
+              sub,
+              identityFields: Object.keys(user).filter((key) => key !== "access_token" && key !== "id_token"),
+            });
+            token.role = "error";
+            token.netID = null;
+            token.isNewUser = false;
+            token.onboardingSession = null;
+            token.roleVerifiedAt = Date.now();
+            return token;
+          }
           // Step 2: First ever login - claim the admin-pre-created roster entry
           // by netID (derived from the CILogon-verified email) and permanently
           // bind this sub to it.
@@ -89,6 +115,7 @@ export const authOptions = {
           record = await claimRosterEntry(netID, sub, clogonName);
         }
 
+        token.netID = record?.net_id ?? getNetIDFromIdentity(user);
         token.role = record ? mapRole(record.role) : "error";
         token.isNewUser = isNewUser && Boolean(record);
         token.onboardingSession = token.isNewUser ? randomUUID() : null;
@@ -136,11 +163,15 @@ export { handler as GET, handler as POST };
  * cannot be predicted or controlled by the end user.
  */
 async function fetchRoleBySub(sub, clogonName = "") {
-  const { data } = await supabaseServer
+  const { data, error } = await supabaseServer
     .from(table("users"))
     .select("role, net_id, name")
     .eq("sub", sub)
     .maybeSingle();
+  if (error) {
+    console.error("CILogon role lookup failed", { code: error.code, message: error.message });
+    return null;
+  }
   if (!data) return null;
   // Backfill name from CILogon if the DB row has none yet
   if (clogonName && !data.name) {
@@ -164,12 +195,17 @@ async function fetchRoleBySub(sub, clogonName = "") {
  */
 async function claimRosterEntry(netID, sub, clogonName = "") {
   // SELECT first so we have the role to return even if the UPDATE rows = 0
-  const { data: unclaimed } = await supabaseServer
+  const { data: unclaimed, error: lookupError } = await supabaseServer
     .from(table("users"))
     .select("role, net_id, name")
     .eq("net_id", netID)
     .is("sub", null)
     .maybeSingle();
+
+  if (lookupError) {
+    console.error("CILogon roster lookup failed", { netID, code: lookupError.code, message: lookupError.message });
+    return null;
+  }
 
   if (!unclaimed) return null;
 
@@ -185,6 +221,26 @@ async function claimRosterEntry(netID, sub, clogonName = "") {
     .maybeSingle();
 
   return error ? null : claimed;
+}
+
+/** Extract a stable Illinois NetID from the identity fields CILogon may send. */
+function getNetIDFromIdentity(user) {
+  const candidates = [
+    user?.email,
+    user?.emailAddress,
+    user?.preferred_username,
+    user?.profile?.email,
+    user?.profile?.preferred_username,
+    user?.profile?.eppn,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim().toLowerCase();
+    if (!value) continue;
+    const email = value.match(/^([a-z0-9][a-z0-9._-]*)@illinois\.edu$/);
+    if (email) return email[1];
+    if (!value.includes("@") && /^[a-z0-9][a-z0-9._-]*$/.test(value)) return value;
+  }
+  return null;
 }
 
 /**
