@@ -391,13 +391,13 @@ export default function EventsPanel() {
                         >
                           {event.check_in_open ? "Close Check-in" : "Open Check-in"}
                         </button>}
-                        <button
+                        {event.created_by === session?.user?.netID && <button
                           className={styles.btnSmall}
                           style={{ background: expandedId === event.id ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.07)", color: "#f9f9f9", border: "1px solid rgba(255,255,255,0.15)" }}
                           onClick={() => viewAttendees(event.id)}
                         >
                           Attendees
-                        </button>
+                        </button>}
                         {event.created_by === session?.user?.netID && <button className={styles.btnDanger} onClick={() => deleteEvent(event.id)}>
                           Delete
                         </button>}
