@@ -45,4 +45,6 @@ CREATE TABLE IF NOT EXISTS sprint_check_windows (
   closed_by       text,
   UNIQUE (sprint_id, group_number)
 );
-ALTER TABLE sprint_check_windows DISABLE ROW LEVEL SECURITY;
+-- Production tables are accessed through the server-only service-role client.
+-- Keep RLS enabled so publishable-key access is denied by default.
+ALTER TABLE sprint_check_windows ENABLE ROW LEVEL SECURITY;

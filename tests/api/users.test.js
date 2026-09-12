@@ -261,13 +261,14 @@ describe("users table - sandbox mode", () => {
     expect(list.map((u) => u.net_id)).toContain("jdoe2");
   });
 
-  it("creating a net_id that already exists (real or sandboxed) fails, same as a real PK collision would", async () => {
+  it("creating a net_id that already exists (real or sandboxed) returns a clear conflict", async () => {
     await insertUser({ net_id: "webdev1", role: "WEB", sandbox_mode: "persistent" });
     await insertUser({ net_id: "existing1", role: "STUDENT" });
     asRole("web_dev", "webdev1");
 
     const res = await POST(makeRequest("http://localhost/api/users", { method: "POST", body: { net_id: "existing1", role: "PM" } }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toContain('A user with NetID "existing1" already exists.');
   });
 
   it("a sandboxed edit to a real user doesn't touch the real row", async () => {

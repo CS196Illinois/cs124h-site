@@ -287,20 +287,20 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 -- ── RLS ────────────────────────────────────────────────────────────────────────
--- Every Supabase call in this app goes through the service-role key
--- (lib/supabaseServer.js) - nothing reads these tables with the anon key -
--- so RLS doesn't gate anything here either way, but disabling it explicitly
--- avoids surprises if a client-side read is ever added later.
-ALTER TABLE users      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE action_items        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE role_view_requests  DISABLE ROW LEVEL SECURITY;
-ALTER TABLE events              DISABLE ROW LEVEL SECURITY;
-ALTER TABLE event_checkins      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sprints              DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sprint_completions  DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sprint_check_windows DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sprint_question_bank DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sandbox_overlay     DISABLE ROW LEVEL SECURITY;
-ALTER TABLE staff               DISABLE ROW LEVEL SECURITY;
-ALTER TABLE resources           DISABLE ROW LEVEL SECURITY;
-ALTER TABLE projects            DISABLE ROW LEVEL SECURITY;
+-- The app accesses Supabase through the server-only service-role client,
+-- which bypasses RLS. Enable RLS anyway so anon/publishable-key access is
+-- denied by default if a client-side query is ever added. Public pages use
+-- server API routes, so they do not need public table policies.
+ALTER TABLE users                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_items             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_view_requests       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_checkins           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprints                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_completions       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_check_windows     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_question_bank     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sandbox_overlay          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE staff                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE resources                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects                 ENABLE ROW LEVEL SECURITY;

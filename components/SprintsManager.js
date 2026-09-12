@@ -395,7 +395,16 @@ export default function SprintsManager({ canManage = false, canManageQuestions =
                 </div>}
                 {canManageQuestionBank && <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.75rem" }}><input value={newBankQuestion} onChange={(e) => setNewBankQuestion(e.target.value)} placeholder="Add a shared question" /><button type="button" className={styles.btnSecondary} onClick={addBankQuestion}>Add to bank</button></div>}
                 {form.check_questions.length === 0 ? (
-                  <div style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem" }}>No questions selected. Choose from the bank or add a custom question below.</div>
+                  <>
+                    <div style={{ color: "rgba(249,249,249,0.55)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>No questions selected. Choose from the bank or add a custom question below.</div>
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      onClick={() => setForm((f) => ({ ...f, check_questions: [...f.check_questions, ""] }))}
+                    >
+                      + Add Question
+                    </button>
+                  </>
                 ) : (
                   <>
                     {form.check_questions.map((q, i) => (

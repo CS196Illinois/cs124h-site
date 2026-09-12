@@ -58,3 +58,20 @@ END $$;
 
 -- Confirm both rows and schema objects are still present after the rename.
 SELECT count(*) AS users_row_count FROM users;
+
+-- Lock down every production table. There are intentionally no anon policies:
+-- the website reads through the server-only service-role client, while direct
+-- browser access through the publishable key must not expose course data.
+ALTER TABLE users                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_items             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_view_requests       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_checkins           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprints                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_completions       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_check_windows     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_question_bank     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sandbox_overlay          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE staff                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE resources                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects                 ENABLE ROW LEVEL SECURITY;

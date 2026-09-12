@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS sprint_question_bank (
   created_by text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE sprint_question_bank ENABLE ROW LEVEL SECURITY;
 INSERT INTO sprint_question_bank (question, created_by) VALUES
  ('What design decisions did you make this week, and why?', 'system'),
  ('What alternative approaches did you consider, and why didn''t you choose them?', 'system'),
