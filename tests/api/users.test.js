@@ -98,6 +98,21 @@ describe("DELETE /api/users (bulk by role)", () => {
 describe("PATCH /api/users/[net_id]", () => {
   beforeEach(clearAllTestTables);
 
+  it("preserves PM group numbers including zero on real course-lead edits", async () => {
+    await insertUser({ net_id: "group-pm", role: "PM", group_number: null });
+    asRole("course_lead", "lead1");
+    for (const group_number of [5, 0, null]) {
+      const response = await PATCH_ONE(
+        makeRequest("http://localhost/api/users/group-pm", { method: "PATCH", body: { group_number } }),
+        { params: Promise.resolve({ net_id: "group-pm" }) }
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).group_number).toBe(group_number);
+      const { data } = await testClient().from(table("users")).select("group_number").eq("net_id", "group-pm").single();
+      expect(data.group_number).toBe(group_number);
+    }
+  });
+
   it("401s for students", async () => {
     asRole("student", "stu1");
     const res = await PATCH_ONE(

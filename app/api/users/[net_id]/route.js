@@ -20,11 +20,19 @@ export async function PATCH(request, { params }) {
   }
 
   const { net_id } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Please provide the changes to save." }, { status: 400 });
   const updates = {};
 
   if (body.name         !== undefined) updates.name         = body.name;
-  if (body.group_number !== undefined) updates.group_number = body.group_number || null;
+  if (body.group_number !== undefined) {
+    const value = body.group_number;
+    const group = value === null || value === "" ? null : Number(value);
+    if (group !== null && ((typeof value !== "string" && typeof value !== "number") || !Number.isInteger(group) || group < 0)) {
+      return NextResponse.json({ error: "Enter a whole group number of zero or greater, or leave it blank to unassign." }, { status: 400 });
+    }
+    updates.group_number = group;
+  }
 
   if (body.role !== undefined) {
     if (!FULL_USER_ACCESS.includes(userRole) && userRole !== "lead_web_dev") {

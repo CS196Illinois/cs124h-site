@@ -47,6 +47,7 @@ export default function CourseLeadPeople() {
   const [addForm, setAddForm] = useState({ name: "", net_id: "", role: "STUDENT", group_number: "" });
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -132,12 +133,31 @@ export default function CourseLeadPeople() {
   };
 
   const handleGroupChange = async (net_id, group_number) => {
-    await fetch(`/api/users/${encodeURIComponent(net_id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ group_number: group_number ? Number(group_number) : null }),
-    });
-    await fetchAll();
+    const value = group_number.trim() === "" ? null : Number(group_number);
+    if (value !== null && (!Number.isInteger(value) || value < 0)) {
+      setSaveError("Enter a whole group number of zero or greater, or leave it blank to unassign.");
+      return;
+    }
+    setSaveError("");
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(net_id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_number: value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveError(data.error || "The group number could not be saved. Please try again.");
+        return;
+      }
+      if (data.group_number !== value) {
+        setSaveError("The saved group number did not match your entry. Refresh and try again; if this continues, ask the website team to check the roster database.");
+        return;
+      }
+      setUsers((prev) => prev.map((u) => u.net_id === net_id ? { ...u, group_number: data.group_number } : u));
+    } catch {
+      setSaveError("The group number could not be saved. Check your connection and try again.");
+    }
   };
 
   const handleExport = () => {
@@ -156,6 +176,7 @@ export default function CourseLeadPeople() {
 
   return (
     <div className={styles.container}>
+      {saveError && <div role="alert" className={styles.alertError}>{saveError}</div>}
       <div className={styles.header}>
         <h1>People</h1>
         <p>{users.length} total member{users.length !== 1 ? "s" : ""}</p>
@@ -268,7 +289,7 @@ export default function CourseLeadPeople() {
                     <td>{u.name || <span style={{ opacity: 0.4 }}>-</span>}</td>
                     <td className={styles.cellMono}>{u.net_id}</td>
                     <td><RoleBadge roleId={u.role} /></td>
-                    <td>{u.group_number || <span style={{ opacity: 0.4 }}>-</span>}</td>
+                    <td>{u.group_number ?? <span style={{ opacity: 0.4 }}>-</span>}</td>
                     <td>
                       <div className={styles.cellActions}>
                         <select
@@ -285,7 +306,7 @@ export default function CourseLeadPeople() {
                           className={styles.roleSelect}
                           style={{ width: 70 }}
                           placeholder="Grp"
-                          defaultValue={u.group_number || ""}
+                          defaultValue={u.group_number ?? ""}
                           onBlur={(e) => handleGroupChange(u.net_id, e.target.value)}
                         />
                         <button className={styles.btnDanger} onClick={() => handleRemoveUser(u.net_id)}>
