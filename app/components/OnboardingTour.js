@@ -83,7 +83,9 @@ export default function OnboardingTour() {
   const [step, setStep] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const steps = useMemo(() => TOUR_STEPS[role] || [], [role]);
-  const storageKey = role && session?.user?.netID ? `cs124h-onboarding:${session.user.netID}:${role}` : null;
+  const storageKey = role && session?.user?.netID && session?.user?.onboardingSession
+    ? `cs124h-onboarding:${session.user.netID}:${role}:${session.user.onboardingSession}`
+    : null;
 
   useEffect(() => {
     if (status !== "authenticated" || !storageKey || process.env.NEXT_PUBLIC_E2E === "true") return;

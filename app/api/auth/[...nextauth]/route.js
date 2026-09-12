@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { randomUUID } from "node:crypto";
 import { supabaseServer } from "../../../../lib/supabaseServer";
 import { table } from "../../../../lib/tables";
 
@@ -90,6 +91,7 @@ export const authOptions = {
 
         token.role = record ? mapRole(record.role) : "error";
         token.isNewUser = isNewUser && Boolean(record);
+        token.onboardingSession = token.isNewUser ? randomUUID() : null;
         token.roleVerifiedAt = Date.now();
         return token;
       }
@@ -116,6 +118,7 @@ export const authOptions = {
         session.user.netID = token.netID;
         session.user.role = token.role;
         session.user.isNewUser = token.isNewUser === true;
+        session.user.onboardingSession = token.onboardingSession ?? null;
       }
       return session;
     },
